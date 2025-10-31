@@ -240,3 +240,58 @@ Preferred communication style: Simple, everyday language.
 - Verified username persistence and default behavior
 - Confirmed comment isolation per video
 - Tested rapid submission handling
+
+---
+
+## Latest Updates (October 31, 2025 - LikeButton Component)
+
+**LikeButton Component Refactor**:
+- Created standalone, reusable `LikeButton` component (`client/src/components/LikeButton.tsx`)
+- Extracted like functionality from StudentVideoFeed for better code organization
+- Reduced StudentVideoFeed complexity and improved maintainability
+
+**LikeButton Component Features**:
+1. **Props**: Takes `videoId` and `initialLikeCount` for flexibility
+2. **Optimistic Updates**: 
+   - Uses local state to show immediate visual feedback when users click Like
+   - No flicker or visual regression during server mutations
+   - Smoothly transitions to actual server value when refetch completes
+3. **Mutation Handling**:
+   - POST /api/videos/:id/like to increment likes
+   - Invalidates query cache to refresh video data
+   - Error handling with rollback on failure
+4. **Styling with Tailwind**:
+   - Smooth transitions: `transition-all duration-200`
+   - Hover effect: `hover:scale-105` (subtle scale up)
+   - Active state: `active:scale-95` (subtle scale down)
+   - Heart icon with conditional fill (red when liked)
+5. **User Experience**:
+   - Button disabled during mutation to prevent duplicate requests
+   - Toast notifications for error feedback
+   - Smooth animations throughout
+   - Independent state per video
+
+**Optimistic Update Implementation**:
+- Uses `useState` for local optimistic state
+- `onMutate`: Increments optimistic count immediately on click
+- `onSuccess`: Invalidates query cache but keeps optimistic state visible
+- `useEffect`: Clears optimistic state when new server data arrives (when `initialLikeCount` catches up)
+- `onError`: Reverts optimistic update and shows error toast
+
+**Bug Fix - Optimistic Update Flicker**:
+- **Issue**: Visual flicker when optimistic state was cleared too early in `onSuccess`
+- **Root Cause**: `setOptimisticLikes(null)` caused count to revert to stale `initialLikeCount` before refetch completed
+- **Solution**: 
+  - Removed premature state clearing in `onSuccess`
+  - Added `useEffect` to intelligently clear optimistic state when server data arrives
+  - Condition: `optimisticLikes <= initialLikeCount` ensures smooth transition
+- **Result**: No visual flicker, smooth count updates throughout mutation lifecycle
+
+**Testing**:
+- All end-to-end tests passed with architect approval
+- Verified optimistic updates work without flicker
+- Tested rapid clicks (5 consecutive) - all handled smoothly
+- Confirmed hover/active transitions (scale effects, 200ms duration)
+- Verified heart icon fills with red color when liked
+- Tested independent state per video
+- Confirmed like counts persist after page refresh
