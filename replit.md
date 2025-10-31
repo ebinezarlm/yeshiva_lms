@@ -2,9 +2,9 @@
 
 ## Overview
 
-This is a productivity-focused video management dashboard designed for educational content creators. The application allows tutors to upload, organize, and manage their tutorial videos through an intuitive Material Design-inspired interface. It provides a streamlined workflow for adding video metadata (title, description, URL, category) and displays videos in a responsive grid layout with delete functionality.
+This is a production-ready video management dashboard designed for educational content creators. The application allows tutors to upload, organize, and manage their tutorial videos through an intuitive Material Design-inspired interface. It provides a streamlined workflow for adding video metadata (title, description, URL, category) and displays videos in a responsive grid layout with full CRUD operations.
 
-The system is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing in-memory storage with schema validation for data integrity.
+The system is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for persistent data storage with schema validation for data integrity.
 
 ## User Preferences
 
@@ -27,11 +27,17 @@ Preferred communication style: Simple, everyday language.
 - Responsive breakpoints: Mobile-first approach with lg (desktop), md (tablet), and default (mobile) breakpoints
 - Component theming: Support for light/dark modes via CSS variables
 
+**Component Structure**:
+- **AddVideoForm** (`client/src/components/AddVideoForm.tsx`): Standalone, reusable component for adding videos with built-in form state, validation, and submission handling
+- **TutorDashboard** (`client/src/pages/TutorDashboard.tsx`): Main page component handling video display, search, filtering, pagination, editing, and deletion
+
 **Key Architectural Decisions**:
 - Component composition pattern using Radix UI primitives for accessibility
+- Standalone form component with encapsulated state for better reusability
 - Form validation at both client and server levels using shared Zod schemas
 - Optimistic UI updates disabled (staleTime: Infinity) for data consistency
 - Toast notifications for user feedback on mutations
+- Controlled Select components using `value` prop (not `defaultValue`) for proper form resets
 
 ### Backend Architecture
 
@@ -41,9 +47,10 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: RESTful endpoints with JSON responses
 
 **Storage Layer**:
-- **Current Implementation**: In-memory storage (MemStorage class)
-- **Interface-based Design**: IStorage interface allows for easy migration to persistent storage
+- **Current Implementation**: PostgreSQL database with Drizzle ORM
+- **Interface-based Design**: IStorage interface abstracts database operations
 - **Data Models**: Users and Videos with UUID primary keys
+- **Database Connection**: Uses Neon serverless PostgreSQL via DATABASE_URL environment variable
 
 **Key Architectural Decisions**:
 - Interface-driven storage abstraction for flexibility
@@ -83,8 +90,8 @@ Preferred communication style: Simple, everyday language.
 **Database**:
 - **Provider**: Neon Database (@neondatabase/serverless)
 - **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Configuration**: DATABASE_URL environment variable required
-- **Note**: Schema is defined for PostgreSQL but currently using in-memory storage. Database connection will need to be initialized when migrating from MemStorage.
+- **Configuration**: DATABASE_URL environment variable
+- **Status**: Fully migrated to PostgreSQL with persistent storage
 
 **UI Component Libraries**:
 - **Radix UI**: Comprehensive set of accessible component primitives (accordion, dialog, dropdown, select, etc.)
@@ -108,3 +115,25 @@ Preferred communication style: Simple, everyday language.
 
 **Session Management** (configured but not actively used):
 - connect-pg-simple: PostgreSQL session store for Express sessions
+
+## Recent Changes (October 31, 2025)
+
+**Component Refactoring**:
+- Extracted AddVideoForm into standalone component (`client/src/components/AddVideoForm.tsx`)
+- Reduced TutorDashboard complexity by ~120 lines
+- Improved code maintainability and reusability
+
+**Database Migration**:
+- Migrated from in-memory storage to PostgreSQL for persistent data storage
+- All videos now persist across server restarts
+
+**Feature Additions**:
+1. **Video Editing**: Modal-based edit functionality with form validation
+2. **Search & Filter**: Client-side search by title/description + category-based filtering
+3. **Pagination**: Display 12 videos per page with automatic page correction after deletions
+4. **CRUD Operations**: Full Create, Read, Update, Delete functionality
+
+**Bug Fixes**:
+- Fixed Select component form reset issue by using `value` prop instead of `defaultValue`
+- Fixed pagination bug where users got stuck on empty pages after deleting videos on later pages
+- Implemented automatic page clamping when totalPages changes

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Video, Trash2, VideoIcon, Loader2, Edit2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { Video as VideoType, InsertVideo } from "@shared/schema";
 import { insertVideoSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import AddVideoForm from "@/components/AddVideoForm";
 
 const VIDEOS_PER_PAGE = 12;
 
@@ -55,16 +56,6 @@ export default function TutorDashboard() {
   const endIndex = startIndex + VIDEOS_PER_PAGE;
   const paginatedVideos = filteredVideos.slice(startIndex, endIndex);
 
-  const form = useForm<InsertVideo>({
-    resolver: zodResolver(insertVideoSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      videoUrl: "",
-      category: "",
-    },
-  });
-
   const editForm = useForm<InsertVideo>({
     resolver: zodResolver(insertVideoSchema),
     defaultValues: {
@@ -72,28 +63,6 @@ export default function TutorDashboard() {
       description: "",
       videoUrl: "",
       category: "",
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: InsertVideo) => {
-      const response = await apiRequest("POST", "/api/videos", data);
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
-      form.reset();
-      toast({
-        title: "Success",
-        description: "Video added successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add video",
-        variant: "destructive",
-      });
     },
   });
 
@@ -142,10 +111,6 @@ export default function TutorDashboard() {
       });
     },
   });
-
-  const onSubmit = (data: InsertVideo) => {
-    createMutation.mutate(data);
-  };
 
   const onEditSubmit = (data: InsertVideo) => {
     if (editingVideo) {
@@ -256,122 +221,7 @@ export default function TutorDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
-            <Card className="sticky top-8" data-testid="card-add-video-form">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-6 text-card-foreground">Add New Video</h2>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Title</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter video title"
-                              {...field}
-                              disabled={createMutation.isPending}
-                              data-testid="input-video-title"
-                            />
-                          </FormControl>
-                          <FormMessage data-testid="error-title" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter video description"
-                              rows={4}
-                              {...field}
-                              disabled={createMutation.isPending}
-                              data-testid="input-video-description"
-                            />
-                          </FormControl>
-                          <FormMessage data-testid="error-description" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="videoUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Video URL</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://youtube.com/watch?v=..."
-                              {...field}
-                              disabled={createMutation.isPending}
-                              data-testid="input-video-url"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Enter YouTube or Vimeo URL
-                          </FormDescription>
-                          <FormMessage data-testid="error-videoUrl" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            disabled={createMutation.isPending}
-                          >
-                            <FormControl>
-                              <SelectTrigger data-testid="select-video-category">
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Tutorial" data-testid="option-category-tutorial">Tutorial</SelectItem>
-                              <SelectItem value="Lecture" data-testid="option-category-lecture">Lecture</SelectItem>
-                              <SelectItem value="Demo" data-testid="option-category-demo">Demo</SelectItem>
-                              <SelectItem value="Review" data-testid="option-category-review">Review</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage data-testid="error-category" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={createMutation.isPending}
-                      data-testid="button-add-video"
-                    >
-                      {createMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Video
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
+            <AddVideoForm />
           </div>
 
           <div className="lg:col-span-2">
