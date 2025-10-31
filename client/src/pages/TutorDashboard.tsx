@@ -35,7 +35,8 @@ export default function TutorDashboard() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertVideo) => {
-      return await apiRequest<VideoType>("POST", "/api/videos", data);
+      const response = await apiRequest("POST", "/api/videos", data);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
