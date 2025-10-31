@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -23,10 +23,12 @@ export const videos = pgTable("videos", {
   description: text("description").notNull(),
   videoUrl: text("video_url").notNull(),
   category: text("category").notNull(),
+  likes: integer("likes").notNull().default(0),
 });
 
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
+  likes: true,
 }).extend({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -36,3 +38,39 @@ export const insertVideoSchema = createInsertSchema(videos).omit({
 
 export type InsertVideo = z.infer<typeof insertVideoSchema>;
 export type Video = typeof videos.$inferSelect;
+
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar("video_id").notNull(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  videoId: z.string(),
+  text: z.string().min(1, "Comment text is required"),
+});
+
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Comment = typeof comments.$inferSelect;
+
+export const questions = pgTable("questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  videoId: varchar("video_id").notNull(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertQuestionSchema = createInsertSchema(questions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  videoId: z.string(),
+  text: z.string().min(1, "Question text is required"),
+});
+
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type Question = typeof questions.$inferSelect;
