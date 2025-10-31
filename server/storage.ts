@@ -1,5 +1,6 @@
-import { type User, type InsertUser, type Video, type InsertVideo } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type User, type InsertUser, type Video, type InsertVideo, users, videos } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -9,53 +10,59 @@ export interface IStorage {
   getAllVideos(): Promise<Video[]>;
   getVideo(id: string): Promise<Video | undefined>;
   createVideo(video: InsertVideo): Promise<Video>;
+  updateVideo(id: string, video: Partial<InsertVideo>): Promise<Video | undefined>;
   deleteVideo(id: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private videos: Map<string, Video>;
-
-  constructor() {
-    this.users = new Map();
-    this.videos = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async getAllVideos(): Promise<Video[]> {
-    return Array.from(this.videos.values());
+    return await db.select().from(videos);
   }
 
   async getVideo(id: string): Promise<Video | undefined> {
-    return this.videos.get(id);
+    const [video] = await db.select().from(videos).where(eq(videos.id, id));
+    return video || undefined;
   }
 
   async createVideo(insertVideo: InsertVideo): Promise<Video> {
-    const id = randomUUID();
-    const video: Video = { ...insertVideo, id };
-    this.videos.set(id, video);
+    const [video] = await db
+      .insert(videos)
+      .values(insertVideo)
+      .returning();
     return video;
   }
 
+  async updateVideo(id: string, updateData: Partial<InsertVideo>): Promise<Video | undefined> {
+    const [video] = await db
+      .update(videos)
+      .set(updateData)
+      .where(eq(videos.id, id))
+      .returning();
+    return video || undefined;
+  }
+
   async deleteVideo(id: string): Promise<boolean> {
-    return this.videos.delete(id);
+    const result = await db.delete(videos).where(eq(videos.id, id)).returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
