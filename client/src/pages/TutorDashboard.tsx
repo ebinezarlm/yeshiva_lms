@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2, Search, X } from "lucide-react";
+import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import type { Video as VideoType, InsertVideo } from "@shared/schema";
 import { insertVideoSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+const VIDEOS_PER_PAGE = 12;
+
 export default function TutorDashboard() {
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -23,6 +25,7 @@ export default function TutorDashboard() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: videos = [], isLoading } = useQuery<VideoType[]>({
     queryKey: ["/api/videos"],
@@ -46,6 +49,11 @@ export default function TutorDashboard() {
 
     return result;
   }, [videos, searchQuery, categoryFilter]);
+
+  const totalPages = Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE);
+  const startIndex = (currentPage - 1) * VIDEOS_PER_PAGE;
+  const endIndex = startIndex + VIDEOS_PER_PAGE;
+  const paginatedVideos = filteredVideos.slice(startIndex, endIndex);
 
   const form = useForm<InsertVideo>({
     resolver: zodResolver(insertVideoSchema),
@@ -163,6 +171,12 @@ export default function TutorDashboard() {
   const handleClearFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getEmbedUrl = (url: string): string | null => {
@@ -201,6 +215,20 @@ export default function TutorDashboard() {
   };
 
   const hasActiveFilters = searchQuery.trim() || categoryFilter !== "all";
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, categoryFilter]);
+
+  // Clamp current page to valid range when total pages changes
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (totalPages === 0 && currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -302,7 +330,7 @@ export default function TutorDashboard() {
                           <FormLabel>Category</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                             disabled={createMutation.isPending}
                           >
                             <FormControl>
@@ -436,89 +464,132 @@ export default function TutorDashboard() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredVideos.map((video) => {
-                  const embedUrl = getEmbedUrl(video.videoUrl);
-                  const isDeleting = deletingId === video.id;
-                  
-                  return (
-                    <Card
-                      key={video.id}
-                      className="overflow-hidden hover-elevate transition-all duration-200"
-                      data-testid={`card-video-${video.id}`}
-                    >
-                      <div className="aspect-video bg-muted relative overflow-hidden">
-                        {embedUrl ? (
-                          <iframe
-                            src={embedUrl}
-                            title={video.title}
-                            className="w-full h-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-muted">
-                            <Video className="h-12 w-12 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="p-5">
-                        <h3
-                          className="font-semibold text-lg mb-2 text-card-foreground line-clamp-2"
-                          data-testid={`text-video-title-${video.id}`}
-                        >
-                          {video.title}
-                        </h3>
-                        <Badge
-                          variant={getCategoryVariant(video.category)}
-                          className="mb-3"
-                          data-testid={`badge-category-${video.id}`}
-                        >
-                          {video.category}
-                        </Badge>
-                        <p
-                          className="text-sm text-muted-foreground line-clamp-3"
-                          data-testid={`text-video-description-${video.id}`}
-                        >
-                          {video.description}
-                        </p>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-0 flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(video)}
-                          className="flex-1"
-                          data-testid={`button-edit-${video.id}`}
-                        >
-                          <Edit2 className="mr-2 h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(video.id)}
-                          disabled={isDeleting}
-                          className="flex-1"
-                          data-testid={`button-delete-${video.id}`}
-                        >
-                          {isDeleting ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Deleting...
-                            </>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {paginatedVideos.map((video) => {
+                    const embedUrl = getEmbedUrl(video.videoUrl);
+                    const isDeleting = deletingId === video.id;
+                    
+                    return (
+                      <Card
+                        key={video.id}
+                        className="overflow-hidden hover-elevate transition-all duration-200"
+                        data-testid={`card-video-${video.id}`}
+                      >
+                        <div className="aspect-video bg-muted relative overflow-hidden">
+                          {embedUrl ? (
+                            <iframe
+                              src={embedUrl}
+                              title={video.title}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
                           ) : (
-                            <>
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </>
+                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                              <Video className="h-12 w-12 text-muted-foreground" />
+                            </div>
                           )}
+                        </div>
+                        <CardContent className="p-5">
+                          <h3
+                            className="font-semibold text-lg mb-2 text-card-foreground line-clamp-2"
+                            data-testid={`text-video-title-${video.id}`}
+                          >
+                            {video.title}
+                          </h3>
+                          <Badge
+                            variant={getCategoryVariant(video.category)}
+                            className="mb-3"
+                            data-testid={`badge-category-${video.id}`}
+                          >
+                            {video.category}
+                          </Badge>
+                          <p
+                            className="text-sm text-muted-foreground line-clamp-3"
+                            data-testid={`text-video-description-${video.id}`}
+                          >
+                            {video.description}
+                          </p>
+                        </CardContent>
+                        <CardFooter className="p-4 pt-0 flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(video)}
+                            className="flex-1"
+                            data-testid={`button-edit-${video.id}`}
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(video.id)}
+                            disabled={isDeleting}
+                            className="flex-1"
+                            data-testid={`button-delete-${video.id}`}
+                          >
+                            {isDeleting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </>
+                            )}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-8 flex items-center justify-center gap-2" data-testid="pagination-controls">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="min-w-[2.5rem]"
+                          data-testid={`button-page-${page}`}
+                        >
+                          {page}
                         </Button>
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
-              </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
