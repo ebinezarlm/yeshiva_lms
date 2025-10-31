@@ -32,8 +32,9 @@ Preferred communication style: Simple, everyday language.
 
 **Component Structure**:
 - **AddVideoForm** (`client/src/components/AddVideoForm.tsx`): Standalone, reusable component for adding videos with built-in form state, validation, and submission handling
+- **CommentList** (`client/src/components/CommentList.tsx`): Reusable comment component that fetches and displays comments with username, timestamp, and text. Includes input fields for posting new comments with auto-refresh
 - **TutorDashboard** (`client/src/pages/TutorDashboard.tsx`): Main page component handling video display, search, filtering, pagination, editing, and deletion
-- **StudentVideoFeed** (`client/src/pages/StudentVideoFeed.tsx`): Interactive video feed with embedded players, like system, expandable comments, and question modal
+- **StudentVideoFeed** (`client/src/pages/StudentVideoFeed.tsx`): Interactive video feed with embedded players, like system, expandable comments (using CommentList), and question modal
 - **App.tsx** (`client/src/App.tsx`): Navigation bar with routing between Tutor (/tutor) and Student (/student) views
 
 **Key Architectural Decisions**:
@@ -90,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 3. **Comments Table**:
    - id (UUID primary key)
    - videoId (UUID foreign key to videos)
+   - username (text with default "Anonymous")
    - text (required text)
    - createdAt (timestamp with default now())
 
@@ -197,3 +199,44 @@ Preferred communication style: Simple, everyday language.
 - Added `addComment(data)` method
 - Added `getQuestions()` method
 - Added `addQuestion(data)` method
+
+---
+
+## Latest Updates (October 31, 2025 - Later)
+
+**CommentList Component Refactor**:
+- Created standalone, reusable `CommentList` component (`client/src/components/CommentList.tsx`)
+- Extracted comment functionality from StudentVideoFeed for better code organization
+- Reduced StudentVideoFeed complexity by ~40 lines
+
+**Database Schema Enhancement**:
+- Added `username` field to comments table with default value "Anonymous"
+- Safely migrated existing comments using default value to prevent data loss
+- Updated `insertCommentSchema` to validate username field
+
+**CommentList Component Features**:
+1. **Props**: Takes `videoId` as single prop for maximum reusability
+2. **Dual Input System**:
+   - Username field (optional, defaults to "Anonymous")
+   - Comment text field (required)
+   - Username persists after submission for easier follow-up comments
+3. **Display Features**:
+   - Comments shown with username (bold), relative timestamp, and text
+   - Uses date-fns `formatDistanceToNow` for human-readable timestamps (e.g., "2 minutes ago")
+   - Tailwind styling: rounded borders, card backgrounds, proper spacing
+4. **Auto-refresh**: Uses `refetchQueries` to immediately update UI after comment submission
+5. **User Experience**:
+   - Comment text input clears after submission
+   - Username input persists for convenience
+   - Toast notifications for success/error feedback
+   - Loading and empty states
+
+**API Changes**:
+- POST /api/videos/:id/comments now accepts: `{ videoId, username, text }`
+- Username defaults to "Anonymous" if not provided
+
+**Testing**:
+- All end-to-end tests passed
+- Verified username persistence and default behavior
+- Confirmed comment isolation per video
+- Tested rapid submission handling
