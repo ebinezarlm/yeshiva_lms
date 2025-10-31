@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2 } from "lucide-react";
+import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Video as VideoType, InsertVideo } from "@shared/schema";
@@ -21,10 +21,31 @@ export default function TutorDashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingVideo, setEditingVideo] = useState<VideoType | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const { data: videos = [], isLoading } = useQuery<VideoType[]>({
     queryKey: ["/api/videos"],
   });
+
+  const filteredVideos = useMemo(() => {
+    let result = [...videos];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (video) =>
+          video.title.toLowerCase().includes(query) ||
+          video.description.toLowerCase().includes(query)
+      );
+    }
+
+    if (categoryFilter !== "all") {
+      result = result.filter((video) => video.category === categoryFilter);
+    }
+
+    return result;
+  }, [videos, searchQuery, categoryFilter]);
 
   const form = useForm<InsertVideo>({
     resolver: zodResolver(insertVideoSchema),
@@ -139,6 +160,11 @@ export default function TutorDashboard() {
     deleteMutation.mutate(id);
   };
 
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+  };
+
   const getEmbedUrl = (url: string): string | null => {
     try {
       const urlObj = new URL(url);
@@ -174,6 +200,8 @@ export default function TutorDashboard() {
     return variants[category] || "secondary";
   };
 
+  const hasActiveFilters = searchQuery.trim() || categoryFilter !== "all";
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -185,10 +213,15 @@ export default function TutorDashboard() {
             Manage your educational video content
           </p>
           {videos.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <Badge variant="secondary" data-testid="badge-video-count">
                 Total Videos: {videos.length}
               </Badge>
+              {hasActiveFilters && (
+                <Badge variant="outline" data-testid="badge-filtered-count">
+                  Showing: {filteredVideos.length}
+                </Badge>
+              )}
             </div>
           )}
         </div>
@@ -314,6 +347,52 @@ export default function TutorDashboard() {
           </div>
 
           <div className="lg:col-span-2">
+            {videos.length > 0 && (
+              <Card className="mb-6" data-testid="card-search-filter">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search videos by title or description..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-search"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Select
+                        value={categoryFilter}
+                        onValueChange={setCategoryFilter}
+                      >
+                        <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-category">
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all" data-testid="option-filter-all">All Categories</SelectItem>
+                          <SelectItem value="Tutorial" data-testid="option-filter-tutorial">Tutorial</SelectItem>
+                          <SelectItem value="Lecture" data-testid="option-filter-lecture">Lecture</SelectItem>
+                          <SelectItem value="Demo" data-testid="option-filter-demo">Demo</SelectItem>
+                          <SelectItem value="Review" data-testid="option-filter-review">Review</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleClearFilters}
+                          data-testid="button-clear-filters"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -331,20 +410,34 @@ export default function TutorDashboard() {
                   </Card>
                 ))}
               </div>
-            ) : videos.length === 0 ? (
+            ) : filteredVideos.length === 0 ? (
               <div
                 className="bg-muted/30 rounded-lg p-12 text-center"
                 data-testid="empty-state"
               >
                 <VideoIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">No videos yet</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {videos.length === 0 ? "No videos yet" : "No videos found"}
+                </h3>
                 <p className="text-muted-foreground">
-                  Add your first educational video using the form
+                  {videos.length === 0 
+                    ? "Add your first educational video using the form"
+                    : "Try adjusting your search or filters"}
                 </p>
+                {hasActiveFilters && videos.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearFilters}
+                    className="mt-4"
+                    data-testid="button-clear-filters-empty"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {videos.map((video) => {
+                {filteredVideos.map((video) => {
                   const embedUrl = getEmbedUrl(video.videoUrl);
                   const isDeleting = deletingId === video.id;
                   
