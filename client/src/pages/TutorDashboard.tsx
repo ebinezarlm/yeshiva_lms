@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Video, Plus, Trash2, VideoIcon, Loader2 } from "lucide-react";
+import { Video, Plus, Trash2, VideoIcon, Loader2, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Video as VideoType, InsertVideo } from "@shared/schema";
@@ -18,12 +19,24 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 export default function TutorDashboard() {
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingVideo, setEditingVideo] = useState<VideoType | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: videos = [], isLoading } = useQuery<VideoType[]>({
     queryKey: ["/api/videos"],
   });
 
   const form = useForm<InsertVideo>({
+    resolver: zodResolver(insertVideoSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      videoUrl: "",
+      category: "",
+    },
+  });
+
+  const editForm = useForm<InsertVideo>({
     resolver: zodResolver(insertVideoSchema),
     defaultValues: {
       title: "",
@@ -55,6 +68,29 @@ export default function TutorDashboard() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: InsertVideo }) => {
+      const response = await apiRequest("PATCH", `/api/videos/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
+      setIsEditDialogOpen(false);
+      setEditingVideo(null);
+      toast({
+        title: "Success",
+        description: "Video updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update video",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       setDeletingId(id);
@@ -80,6 +116,23 @@ export default function TutorDashboard() {
 
   const onSubmit = (data: InsertVideo) => {
     createMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: InsertVideo) => {
+    if (editingVideo) {
+      updateMutation.mutate({ id: editingVideo.id, data });
+    }
+  };
+
+  const handleEdit = (video: VideoType) => {
+    setEditingVideo(video);
+    editForm.reset({
+      title: video.title,
+      description: video.description,
+      videoUrl: video.videoUrl,
+      category: video.category,
+    });
+    setIsEditDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -337,13 +390,23 @@ export default function TutorDashboard() {
                           {video.description}
                         </p>
                       </CardContent>
-                      <CardFooter className="p-4 pt-0">
+                      <CardFooter className="p-4 pt-0 flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(video)}
+                          className="flex-1"
+                          data-testid={`button-edit-${video.id}`}
+                        >
+                          <Edit2 className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => handleDelete(video.id)}
                           disabled={isDeleting}
-                          className="w-full"
+                          className="flex-1"
                           data-testid={`button-delete-${video.id}`}
                         >
                           {isDeleting ? (
@@ -367,6 +430,134 @@ export default function TutorDashboard() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]" data-testid="dialog-edit-video">
+          <DialogHeader>
+            <DialogTitle>Edit Video</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter video title"
+                        {...field}
+                        disabled={updateMutation.isPending}
+                        data-testid="input-edit-video-title"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter video description"
+                        rows={4}
+                        {...field}
+                        disabled={updateMutation.isPending}
+                        data-testid="input-edit-video-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Video URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://youtube.com/watch?v=..."
+                        {...field}
+                        disabled={updateMutation.isPending}
+                        data-testid="input-edit-video-url"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Enter YouTube or Vimeo URL
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={updateMutation.isPending}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-video-category">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Tutorial">Tutorial</SelectItem>
+                        <SelectItem value="Lecture">Lecture</SelectItem>
+                        <SelectItem value="Demo">Demo</SelectItem>
+                        <SelectItem value="Review">Review</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                  disabled={updateMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-save-edit"
+                >
+                  {updateMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
