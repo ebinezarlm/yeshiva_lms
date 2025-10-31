@@ -45,8 +45,8 @@ export default function StudentVideoFeed() {
       const response = await apiRequest("POST", `/api/videos/${videoId}/comments`, { text });
       return await response.json();
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/videos", variables.videoId, "comments"] });
+    onSuccess: async (_, variables) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/videos", variables.videoId, "comments"] });
       setCommentTexts(prev => ({ ...prev, [variables.videoId]: "" }));
       toast({
         title: "Success",
@@ -253,9 +253,10 @@ function VideoCard({
   isLiking,
   isCommenting,
 }: VideoCardProps) {
-  const { data: comments = [] } = useQuery<Comment[]>({
+  const { data: comments = [], refetch: refetchComments } = useQuery<Comment[]>({
     queryKey: ["/api/videos", video.id, "comments"],
     enabled: isCommentsExpanded,
+    staleTime: 0,
   });
 
   const embedUrl = getEmbedUrl(video.videoUrl);
