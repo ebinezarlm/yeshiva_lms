@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Heart, MessageCircle, HelpCircle, Send, X } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Heart, MessageCircle, HelpCircle } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Video, Comment } from "@shared/schema";
+import type { Video } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import CommentList from "@/components/CommentList";
 
 export default function StudentVideoFeed() {
   const { toast } = useToast();
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
-  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
   const [questionText, setQuestionText] = useState("");
@@ -35,28 +34,6 @@ export default function StudentVideoFeed() {
       toast({
         title: "Error",
         description: "Failed to like video",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const commentMutation = useMutation({
-    mutationFn: async ({ videoId, text }: { videoId: string; text: string }) => {
-      const response = await apiRequest("POST", `/api/videos/${videoId}/comments`, { text });
-      return await response.json();
-    },
-    onSuccess: async (_, variables) => {
-      await queryClient.refetchQueries({ queryKey: ["/api/videos", variables.videoId, "comments"] });
-      setCommentTexts(prev => ({ ...prev, [variables.videoId]: "" }));
-      toast({
-        title: "Success",
-        description: "Comment added",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add comment",
         variant: "destructive",
       });
     },
@@ -86,12 +63,6 @@ export default function StudentVideoFeed() {
 
   const handleLike = (videoId: string) => {
     likeMutation.mutate(videoId);
-  };
-
-  const handleCommentSubmit = (videoId: string) => {
-    const text = commentTexts[videoId]?.trim();
-    if (!text) return;
-    commentMutation.mutate({ videoId, text });
   };
 
   const handleQuestionSubmit = () => {
@@ -172,15 +143,11 @@ export default function StudentVideoFeed() {
                 key={video.id}
                 video={video}
                 isCommentsExpanded={expandedComments.has(video.id)}
-                commentText={commentTexts[video.id] || ""}
-                onCommentTextChange={(text) => setCommentTexts(prev => ({ ...prev, [video.id]: text }))}
                 onLike={() => handleLike(video.id)}
-                onCommentSubmit={() => handleCommentSubmit(video.id)}
                 onToggleComments={() => toggleComments(video.id)}
                 onAskQuestion={() => openQuestionModal(video.id)}
                 getEmbedUrl={getEmbedUrl}
                 isLiking={likeMutation.isPending}
-                isCommenting={commentMutation.isPending}
               />
             ))}
           </div>
@@ -229,36 +196,22 @@ export default function StudentVideoFeed() {
 interface VideoCardProps {
   video: Video;
   isCommentsExpanded: boolean;
-  commentText: string;
-  onCommentTextChange: (text: string) => void;
   onLike: () => void;
-  onCommentSubmit: () => void;
   onToggleComments: () => void;
   onAskQuestion: () => void;
   getEmbedUrl: (url: string) => string | null;
   isLiking: boolean;
-  isCommenting: boolean;
 }
 
 function VideoCard({
   video,
   isCommentsExpanded,
-  commentText,
-  onCommentTextChange,
   onLike,
-  onCommentSubmit,
   onToggleComments,
   onAskQuestion,
   getEmbedUrl,
   isLiking,
-  isCommenting,
 }: VideoCardProps) {
-  const { data: comments = [], refetch: refetchComments } = useQuery<Comment[]>({
-    queryKey: ["/api/videos", video.id, "comments"],
-    enabled: isCommentsExpanded,
-    staleTime: 0,
-  });
-
   const embedUrl = getEmbedUrl(video.videoUrl);
 
   return (
@@ -331,50 +284,8 @@ function VideoCard({
         </div>
 
         {isCommentsExpanded && (
-          <div className="space-y-3 border-t pt-4" data-testid={`section-comments-${video.id}`}>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a comment..."
-                value={commentText}
-                onChange={(e) => onCommentTextChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    onCommentSubmit();
-                  }
-                }}
-                data-testid={`input-comment-${video.id}`}
-              />
-              <Button
-                size="icon"
-                onClick={onCommentSubmit}
-                disabled={!commentText.trim() || isCommenting}
-                data-testid={`button-submit-comment-${video.id}`}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {comments.length > 0 ? (
-              <div className="space-y-2">
-                {comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="bg-muted p-3 rounded-md"
-                    data-testid={`comment-${comment.id}`}
-                  >
-                    <p className="text-sm">{comment.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(comment.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                No comments yet. Be the first to comment!
-              </p>
-            )}
+          <div className="border-t pt-4" data-testid={`section-comments-${video.id}`}>
+            <CommentList videoId={video.id} />
           </div>
         )}
       </CardContent>

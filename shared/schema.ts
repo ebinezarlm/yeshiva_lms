@@ -42,6 +42,7 @@ export type Video = typeof videos.$inferSelect;
 export const comments = pgTable("comments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   videoId: varchar("video_id").notNull(),
+  username: text("username").notNull().default("Anonymous"),
   text: text("text").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -51,6 +52,7 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   createdAt: true,
 }).extend({
   videoId: z.string(),
+  username: z.string().min(1, "Username is required"),
   text: z.string().min(1, "Comment text is required"),
 });
 
