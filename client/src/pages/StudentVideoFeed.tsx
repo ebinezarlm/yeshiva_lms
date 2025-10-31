@@ -1,54 +1,21 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { MessageCircle, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 import type { Video } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import CommentList from "@/components/CommentList";
 import LikeButton from "@/components/LikeButton";
+import QuestionAnswerSection from "@/components/QuestionAnswerSection";
 
 export default function StudentVideoFeed() {
-  const { toast } = useToast();
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
-  const [questionModalOpen, setQuestionModalOpen] = useState(false);
-  const [selectedVideoId, setSelectedVideoId] = useState<string>("");
-  const [questionText, setQuestionText] = useState("");
+  const [expandedQA, setExpandedQA] = useState<Set<string>>(new Set());
 
   const { data: videos = [], isLoading } = useQuery<Video[]>({
     queryKey: ["/api/videos"],
   });
-
-  const questionMutation = useMutation({
-    mutationFn: async ({ videoId, text }: { videoId: string; text: string }) => {
-      const response = await apiRequest("POST", "/api/questions", { videoId, text });
-      return await response.json();
-    },
-    onSuccess: () => {
-      setQuestionModalOpen(false);
-      setQuestionText("");
-      toast({
-        title: "Success",
-        description: "Question submitted",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to submit question",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleQuestionSubmit = () => {
-    if (!questionText.trim()) return;
-    questionMutation.mutate({ videoId: selectedVideoId, text: questionText });
-  };
 
   const toggleComments = (videoId: string) => {
     setExpandedComments(prev => {
@@ -62,9 +29,16 @@ export default function StudentVideoFeed() {
     });
   };
 
-  const openQuestionModal = (videoId: string) => {
-    setSelectedVideoId(videoId);
-    setQuestionModalOpen(true);
+  const toggleQA = (videoId: string) => {
+    setExpandedQA(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(videoId)) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
   };
 
   const getEmbedUrl = (url: string): string | null => {
@@ -123,49 +97,14 @@ export default function StudentVideoFeed() {
                 key={video.id}
                 video={video}
                 isCommentsExpanded={expandedComments.has(video.id)}
+                isQAExpanded={expandedQA.has(video.id)}
                 onToggleComments={() => toggleComments(video.id)}
-                onAskQuestion={() => openQuestionModal(video.id)}
+                onToggleQA={() => toggleQA(video.id)}
                 getEmbedUrl={getEmbedUrl}
               />
             ))}
           </div>
         )}
-
-        <Dialog open={questionModalOpen} onOpenChange={setQuestionModalOpen}>
-          <DialogContent data-testid="dialog-ask-question">
-            <DialogHeader>
-              <DialogTitle>Ask a Question</DialogTitle>
-              <DialogDescription>
-                Submit your question about this video. The tutor will review it.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Textarea
-                placeholder="Type your question here..."
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                rows={4}
-                data-testid="input-question-text"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setQuestionModalOpen(false)}
-                  data-testid="button-cancel-question"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleQuestionSubmit}
-                  disabled={!questionText.trim() || questionMutation.isPending}
-                  data-testid="button-submit-question"
-                >
-                  {questionMutation.isPending ? "Submitting..." : "Submit Question"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
@@ -174,16 +113,18 @@ export default function StudentVideoFeed() {
 interface VideoCardProps {
   video: Video;
   isCommentsExpanded: boolean;
+  isQAExpanded: boolean;
   onToggleComments: () => void;
-  onAskQuestion: () => void;
+  onToggleQA: () => void;
   getEmbedUrl: (url: string) => string | null;
 }
 
 function VideoCard({
   video,
   isCommentsExpanded,
+  isQAExpanded,
   onToggleComments,
-  onAskQuestion,
+  onToggleQA,
   getEmbedUrl,
 }: VideoCardProps) {
   const embedUrl = getEmbedUrl(video.videoUrl);
@@ -238,18 +179,24 @@ function VideoCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={onAskQuestion}
+            onClick={onToggleQA}
             className="flex-1"
-            data-testid={`button-ask-question-${video.id}`}
+            data-testid={`button-toggle-qa-${video.id}`}
           >
             <HelpCircle className="mr-2 h-4 w-4" />
-            Ask
+            Q&A
           </Button>
         </div>
 
         {isCommentsExpanded && (
           <div className="border-t pt-4" data-testid={`section-comments-${video.id}`}>
             <CommentList videoId={video.id} />
+          </div>
+        )}
+
+        {isQAExpanded && (
+          <div className="border-t pt-4" data-testid={`section-qa-${video.id}`}>
+            <QuestionAnswerSection videoId={video.id} isTutor={false} />
           </div>
         )}
       </CardContent>
