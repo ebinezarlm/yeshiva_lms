@@ -94,13 +94,13 @@ export default function QuestionAnswerSection({ videoId, isTutor = false }: Ques
     answerQuestionMutation.mutate({ questionId, answer });
   };
 
-  const toggleQuestion = (questionId: string) => {
+  const toggleQuestion = (questionId: string, open: boolean) => {
     setExpandedQuestions(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(questionId)) {
-        newSet.delete(questionId);
-      } else {
+      if (open) {
         newSet.add(questionId);
+      } else {
+        newSet.delete(questionId);
       }
       return newSet;
     });
@@ -156,14 +156,14 @@ export default function QuestionAnswerSection({ videoId, isTutor = false }: Ques
             const isExpanded = expandedQuestions.has(question.id);
             
             return (
-              <Collapsible
+              <div
                 key={question.id}
-                open={isExpanded}
-                onOpenChange={() => toggleQuestion(question.id)}
+                className="border rounded-md p-4"
+                data-testid={`card-question-${question.id}`}
               >
-                <div
-                  className="border rounded-md p-4 space-y-3"
-                  data-testid={`card-question-${question.id}`}
+                <Collapsible
+                  open={isExpanded}
+                  onOpenChange={(open) => toggleQuestion(question.id, open)}
                 >
                   <CollapsibleTrigger asChild>
                     <button 
@@ -184,48 +184,50 @@ export default function QuestionAnswerSection({ videoId, isTutor = false }: Ques
                     </button>
                   </CollapsibleTrigger>
 
-                  <CollapsibleContent className="space-y-3">
-                    {question.answer ? (
-                      <div
-                        className="bg-muted/50 rounded-md p-3 space-y-2"
-                        data-testid={`section-answer-${question.id}`}
-                      >
-                        <p className="text-xs font-semibold text-primary">Answer:</p>
-                        <p className="text-sm">{question.answer}</p>
-                        {question.answeredAt && (
-                          <p className="text-xs text-muted-foreground">
-                            Answered {formatDistanceToNow(new Date(question.answeredAt), { addSuffix: true })}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      isTutor && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">No answer yet</p>
-                          <Textarea
-                            placeholder="Type your answer..."
-                            value={answerText[question.id] || ""}
-                            onChange={(e) =>
-                              setAnswerText(prev => ({ ...prev, [question.id]: e.target.value }))
-                            }
-                            className="resize-none"
-                            rows={3}
-                            data-testid={`input-answer-text-${question.id}`}
-                          />
-                          <Button
-                            onClick={() => handleAnswerQuestion(question.id)}
-                            disabled={answerQuestionMutation.isPending || !answerText[question.id]?.trim()}
-                            size="sm"
-                            data-testid={`button-submit-answer-${question.id}`}
-                          >
-                            {answerQuestionMutation.isPending ? "Posting..." : "Post Answer"}
-                          </Button>
+                  <CollapsibleContent className="pt-3">
+                    <div className="space-y-3">
+                      {question.answer ? (
+                        <div
+                          className="bg-muted/50 rounded-md p-3 space-y-2"
+                          data-testid={`section-answer-${question.id}`}
+                        >
+                          <p className="text-xs font-semibold text-primary">Answer:</p>
+                          <p className="text-sm">{question.answer}</p>
+                          {question.answeredAt && (
+                            <p className="text-xs text-muted-foreground">
+                              Answered {formatDistanceToNow(new Date(question.answeredAt), { addSuffix: true })}
+                            </p>
+                          )}
                         </div>
-                      )
-                    )}
+                      ) : (
+                        isTutor && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">No answer yet</p>
+                            <Textarea
+                              placeholder="Type your answer..."
+                              value={answerText[question.id] || ""}
+                              onChange={(e) =>
+                                setAnswerText(prev => ({ ...prev, [question.id]: e.target.value }))
+                              }
+                              className="resize-none"
+                              rows={3}
+                              data-testid={`input-answer-text-${question.id}`}
+                            />
+                            <Button
+                              onClick={() => handleAnswerQuestion(question.id)}
+                              disabled={answerQuestionMutation.isPending || !answerText[question.id]?.trim()}
+                              size="sm"
+                              data-testid={`button-submit-answer-${question.id}`}
+                            >
+                              {answerQuestionMutation.isPending ? "Posting..." : "Post Answer"}
+                            </Button>
+                          </div>
+                        )
+                      )}
+                    </div>
                   </CollapsibleContent>
-                </div>
-              </Collapsible>
+                </Collapsible>
+              </div>
             );
           })}
         </div>
