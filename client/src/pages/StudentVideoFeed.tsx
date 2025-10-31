@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Heart, MessageCircle, HelpCircle } from "lucide-react";
+import { MessageCircle, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Video } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import CommentList from "@/components/CommentList";
+import LikeButton from "@/components/LikeButton";
 
 export default function StudentVideoFeed() {
   const { toast } = useToast();
@@ -20,23 +21,6 @@ export default function StudentVideoFeed() {
 
   const { data: videos = [], isLoading } = useQuery<Video[]>({
     queryKey: ["/api/videos"],
-  });
-
-  const likeMutation = useMutation({
-    mutationFn: async (videoId: string) => {
-      const response = await apiRequest("POST", `/api/videos/${videoId}/like`);
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to like video",
-        variant: "destructive",
-      });
-    },
   });
 
   const questionMutation = useMutation({
@@ -60,10 +44,6 @@ export default function StudentVideoFeed() {
       });
     },
   });
-
-  const handleLike = (videoId: string) => {
-    likeMutation.mutate(videoId);
-  };
 
   const handleQuestionSubmit = () => {
     if (!questionText.trim()) return;
@@ -143,11 +123,9 @@ export default function StudentVideoFeed() {
                 key={video.id}
                 video={video}
                 isCommentsExpanded={expandedComments.has(video.id)}
-                onLike={() => handleLike(video.id)}
                 onToggleComments={() => toggleComments(video.id)}
                 onAskQuestion={() => openQuestionModal(video.id)}
                 getEmbedUrl={getEmbedUrl}
-                isLiking={likeMutation.isPending}
               />
             ))}
           </div>
@@ -196,21 +174,17 @@ export default function StudentVideoFeed() {
 interface VideoCardProps {
   video: Video;
   isCommentsExpanded: boolean;
-  onLike: () => void;
   onToggleComments: () => void;
   onAskQuestion: () => void;
   getEmbedUrl: (url: string) => string | null;
-  isLiking: boolean;
 }
 
 function VideoCard({
   video,
   isCommentsExpanded,
-  onLike,
   onToggleComments,
   onAskQuestion,
   getEmbedUrl,
-  isLiking,
 }: VideoCardProps) {
   const embedUrl = getEmbedUrl(video.videoUrl);
 
@@ -248,17 +222,7 @@ function VideoCard({
 
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onLike}
-            disabled={isLiking}
-            className="flex-1"
-            data-testid={`button-like-${video.id}`}
-          >
-            <Heart className={`mr-2 h-4 w-4 ${video.likes > 0 ? 'fill-current' : ''}`} />
-            {video.likes} {video.likes === 1 ? 'Like' : 'Likes'}
-          </Button>
+          <LikeButton videoId={video.id} initialLikeCount={video.likes} />
 
           <Button
             variant="outline"
