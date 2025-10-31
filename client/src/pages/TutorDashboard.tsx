@@ -1,130 +1,88 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Video, Plus, Trash2, VideoIcon, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import type { Video as VideoType, InsertVideo } from "@shared/schema";
+import { insertVideoSchema } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function TutorDashboard() {
-  const [videos, setVideos] = useState<VideoType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<InsertVideo>({
-    title: "",
-    description: "",
-    videoUrl: "",
-    category: "",
+  const { data: videos = [], isLoading } = useQuery<VideoType[]>({
+    queryKey: ["/api/videos"],
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof InsertVideo, string>>>({});
+  const form = useForm<InsertVideo>({
+    resolver: zodResolver(insertVideoSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      videoUrl: "",
+      category: "",
+    },
+  });
 
-  useEffect(() => {
-    fetchVideos();
-  }, []);
-
-  const fetchVideos = async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get<VideoType[]>("/api/videos");
-      setVideos(response.data);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load videos",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name as keyof InsertVideo]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof InsertVideo, string>> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = "Description is required";
-    }
-    if (!formData.videoUrl.trim()) {
-      newErrors.videoUrl = "Video URL is required";
-    } else {
-      try {
-        new URL(formData.videoUrl);
-      } catch {
-        newErrors.videoUrl = "Must be a valid URL";
-      }
-    }
-    if (!formData.category) {
-      newErrors.category = "Category is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      const response = await axios.post<VideoType>("/api/videos", formData);
-      setVideos((prev) => [response.data, ...prev]);
-      setFormData({
-        title: "",
-        description: "",
-        videoUrl: "",
-        category: "",
-      });
+  const createMutation = useMutation({
+    mutationFn: async (data: InsertVideo) => {
+      return await apiRequest<VideoType>("POST", "/api/videos", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
+      form.reset();
       toast({
         title: "Success",
         description: "Video added successfully",
       });
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to add video",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+  });
 
-  const handleDelete = async (id: string) => {
-    try {
-      await axios.delete(`/api/videos/${id}`);
-      setVideos((prev) => prev.filter((video) => video.id !== id));
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setDeletingId(id);
+      return await apiRequest("DELETE", `/api/videos/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
+      setDeletingId(null);
       toast({
         title: "Success",
         description: "Video deleted successfully",
       });
-    } catch (error) {
+    },
+    onError: () => {
+      setDeletingId(null);
       toast({
         title: "Error",
         description: "Failed to delete video",
         variant: "destructive",
       });
-    }
+    },
+  });
+
+  const onSubmit = (data: InsertVideo) => {
+    createMutation.mutate(data);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   const getEmbedUrl = (url: string): string | null => {
@@ -152,14 +110,14 @@ export default function TutorDashboard() {
     }
   };
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      Tutorial: "bg-blue-100 text-blue-800",
-      Lecture: "bg-purple-100 text-purple-800",
-      Demo: "bg-green-100 text-green-800",
-      Review: "bg-amber-100 text-amber-800",
+  const getCategoryVariant = (category: string): "default" | "secondary" | "outline" => {
+    const variants: Record<string, "default" | "secondary" | "outline"> = {
+      Tutorial: "default",
+      Lecture: "secondary",
+      Demo: "outline",
+      Review: "secondary",
     };
-    return colors[category] || "bg-gray-100 text-gray-800";
+    return variants[category] || "secondary";
   };
 
   return (
@@ -186,149 +144,125 @@ export default function TutorDashboard() {
             <Card className="sticky top-8" data-testid="card-add-video-form">
               <CardContent className="p-6">
                 <h2 className="text-xl font-semibold mb-6 text-card-foreground">Add New Video</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="title"
-                      className="block mb-2 text-sm font-medium text-foreground"
-                    >
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
                       name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg transition-all focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground ${
-                        errors.title ? "border-destructive" : "border-input"
-                      }`}
-                      placeholder="Enter video title"
-                      disabled={isSubmitting}
-                      data-testid="input-video-title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter video title"
+                              {...field}
+                              disabled={createMutation.isPending}
+                              data-testid="input-video-title"
+                            />
+                          </FormControl>
+                          <FormMessage data-testid="error-title" />
+                        </FormItem>
+                      )}
                     />
-                    {errors.title && (
-                      <p className="mt-1 text-xs text-destructive" data-testid="error-title">
-                        {errors.title}
-                      </p>
-                    )}
-                  </div>
 
-                  <div>
-                    <label
-                      htmlFor="description"
-                      className="block mb-2 text-sm font-medium text-foreground"
-                    >
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
+                    <FormField
+                      control={form.control}
                       name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows={4}
-                      className={`w-full px-4 py-3 border rounded-lg transition-all focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground resize-none ${
-                        errors.description ? "border-destructive" : "border-input"
-                      }`}
-                      placeholder="Enter video description"
-                      disabled={isSubmitting}
-                      data-testid="input-video-description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter video description"
+                              rows={4}
+                              {...field}
+                              disabled={createMutation.isPending}
+                              data-testid="input-video-description"
+                            />
+                          </FormControl>
+                          <FormMessage data-testid="error-description" />
+                        </FormItem>
+                      )}
                     />
-                    {errors.description && (
-                      <p className="mt-1 text-xs text-destructive" data-testid="error-description">
-                        {errors.description}
-                      </p>
-                    )}
-                  </div>
 
-                  <div>
-                    <label
-                      htmlFor="videoUrl"
-                      className="block mb-2 text-sm font-medium text-foreground"
-                    >
-                      Video URL
-                    </label>
-                    <input
-                      type="text"
-                      id="videoUrl"
+                    <FormField
+                      control={form.control}
                       name="videoUrl"
-                      value={formData.videoUrl}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg transition-all focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground ${
-                        errors.videoUrl ? "border-destructive" : "border-input"
-                      }`}
-                      placeholder="https://youtube.com/watch?v=..."
-                      disabled={isSubmitting}
-                      data-testid="input-video-url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Video URL</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://youtube.com/watch?v=..."
+                              {...field}
+                              disabled={createMutation.isPending}
+                              data-testid="input-video-url"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Enter YouTube or Vimeo URL
+                          </FormDescription>
+                          <FormMessage data-testid="error-videoUrl" />
+                        </FormItem>
+                      )}
                     />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Enter YouTube or Vimeo URL
-                    </p>
-                    {errors.videoUrl && (
-                      <p className="mt-1 text-xs text-destructive" data-testid="error-videoUrl">
-                        {errors.videoUrl}
-                      </p>
-                    )}
-                  </div>
 
-                  <div>
-                    <label
-                      htmlFor="category"
-                      className="block mb-2 text-sm font-medium text-foreground"
-                    >
-                      Category
-                    </label>
-                    <select
-                      id="category"
+                    <FormField
+                      control={form.control}
                       name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg transition-all focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground ${
-                        errors.category ? "border-destructive" : "border-input"
-                      }`}
-                      disabled={isSubmitting}
-                      data-testid="select-video-category"
-                    >
-                      <option value="">Select a category</option>
-                      <option value="Tutorial">Tutorial</option>
-                      <option value="Lecture">Lecture</option>
-                      <option value="Demo">Demo</option>
-                      <option value="Review">Review</option>
-                    </select>
-                    {errors.category && (
-                      <p className="mt-1 text-xs text-destructive" data-testid="error-category">
-                        {errors.category}
-                      </p>
-                    )}
-                  </div>
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            disabled={createMutation.isPending}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-video-category">
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Tutorial" data-testid="option-category-tutorial">Tutorial</SelectItem>
+                              <SelectItem value="Lecture" data-testid="option-category-lecture">Lecture</SelectItem>
+                              <SelectItem value="Demo" data-testid="option-category-demo">Demo</SelectItem>
+                              <SelectItem value="Review" data-testid="option-category-review">Review</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage data-testid="error-category" />
+                        </FormItem>
+                      )}
+                    />
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isSubmitting}
-                    data-testid="button-add-video"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Video
-                      </>
-                    )}
-                  </Button>
-                </form>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={createMutation.isPending}
+                      data-testid="button-add-video"
+                    >
+                      {createMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Video
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
           </div>
 
           <div className="lg:col-span-2">
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
                   <Card key={i} className="overflow-hidden" data-testid={`skeleton-card-${i}`}>
                     <div className="aspect-video bg-muted animate-pulse" />
                     <CardContent className="p-5">
@@ -355,9 +289,11 @@ export default function TutorDashboard() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {videos.map((video) => {
                   const embedUrl = getEmbedUrl(video.videoUrl);
+                  const isDeleting = deletingId === video.id;
+                  
                   return (
                     <Card
                       key={video.id}
@@ -387,7 +323,8 @@ export default function TutorDashboard() {
                           {video.title}
                         </h3>
                         <Badge
-                          className={`${getCategoryColor(video.category)} mb-3`}
+                          variant={getCategoryVariant(video.category)}
+                          className="mb-3"
                           data-testid={`badge-category-${video.id}`}
                         >
                           {video.category}
@@ -404,11 +341,21 @@ export default function TutorDashboard() {
                           variant="destructive"
                           size="sm"
                           onClick={() => handleDelete(video.id)}
+                          disabled={isDeleting}
                           className="w-full"
                           data-testid={`button-delete-${video.id}`}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          {isDeleting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </>
+                          )}
                         </Button>
                       </CardFooter>
                     </Card>
