@@ -20,6 +20,7 @@ export interface IStorage {
   getAllQuestions(): Promise<Question[]>;
   getQuestionsByVideoId(videoId: string): Promise<Question[]>;
   createQuestion(question: InsertQuestion): Promise<Question>;
+  answerQuestion(id: string, answer: string): Promise<Question | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,6 +108,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertQuestion)
       .returning();
     return question;
+  }
+
+  async answerQuestion(id: string, answer: string): Promise<Question | undefined> {
+    const [question] = await db
+      .update(questions)
+      .set({ answer, answeredAt: new Date() })
+      .where(eq(questions.id, id))
+      .returning();
+    return question || undefined;
   }
 }
 

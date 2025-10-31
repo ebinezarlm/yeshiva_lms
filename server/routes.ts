@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -128,6 +128,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: "Invalid question data", details: error.errors });
       } else {
         res.status(500).json({ error: "Failed to create question" });
+      }
+    }
+  });
+
+  app.get("/api/videos/:id/questions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const questions = await storage.getQuestionsByVideoId(id);
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch questions" });
+    }
+  });
+
+  app.post("/api/questions/:id/answer", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = answerQuestionSchema.parse(req.body);
+      const question = await storage.answerQuestion(id, validatedData.answer);
+      
+      if (!question) {
+        res.status(404).json({ error: "Question not found" });
+        return;
+      }
+      
+      res.status(200).json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid answer data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to answer question" });
       }
     }
   });
