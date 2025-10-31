@@ -1,10 +1,13 @@
-# Video Management Dashboard - Tutor Dashboard
+# Video Learning Platform - Tutor & Student Dashboard
 
 ## Overview
 
-This is a production-ready video management dashboard designed for educational content creators. The application allows tutors to upload, organize, and manage their tutorial videos through an intuitive Material Design-inspired interface. It provides a streamlined workflow for adding video metadata (title, description, URL, category) and displays videos in a responsive grid layout with full CRUD operations.
+This is a full-featured video learning platform designed for educational content creators and students. The application provides two distinct interfaces:
 
-The system is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for persistent data storage with schema validation for data integrity.
+1. **Tutor Dashboard**: Allows educators to upload, organize, and manage their tutorial videos through an intuitive Material Design-inspired interface with full CRUD operations
+2. **Student Feed**: Provides an interactive video viewing experience with likes, comments, and question submission capabilities
+
+The system is built as a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for persistent data storage with comprehensive schema validation for data integrity.
 
 ## User Preferences
 
@@ -30,14 +33,18 @@ Preferred communication style: Simple, everyday language.
 **Component Structure**:
 - **AddVideoForm** (`client/src/components/AddVideoForm.tsx`): Standalone, reusable component for adding videos with built-in form state, validation, and submission handling
 - **TutorDashboard** (`client/src/pages/TutorDashboard.tsx`): Main page component handling video display, search, filtering, pagination, editing, and deletion
+- **StudentVideoFeed** (`client/src/pages/StudentVideoFeed.tsx`): Interactive video feed with embedded players, like system, expandable comments, and question modal
+- **App.tsx** (`client/src/App.tsx`): Navigation bar with routing between Tutor (/tutor) and Student (/student) views
 
 **Key Architectural Decisions**:
 - Component composition pattern using Radix UI primitives for accessibility
 - Standalone form component with encapsulated state for better reusability
 - Form validation at both client and server levels using shared Zod schemas
-- Optimistic UI updates disabled (staleTime: Infinity) for data consistency
+- Query cache management: Global `staleTime: Infinity` with selective overrides (`staleTime: 0`) for real-time data like comments
+- TanStack Query mutations with `refetchQueries` for immediate UI updates after server mutations
 - Toast notifications for user feedback on mutations
 - Controlled Select components using `value` prop (not `defaultValue`) for proper form resets
+- Dialog components for modals (video editing, question submission)
 
 ### Backend Architecture
 
@@ -49,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 **Storage Layer**:
 - **Current Implementation**: PostgreSQL database with Drizzle ORM
 - **Interface-based Design**: IStorage interface abstracts database operations
-- **Data Models**: Users and Videos with UUID primary keys
+- **Data Models**: Users, Videos, Comments, and Questions tables with UUID primary keys
 - **Database Connection**: Uses Neon serverless PostgreSQL via DATABASE_URL environment variable
 
 **Key Architectural Decisions**:
@@ -78,12 +85,26 @@ Preferred communication style: Simple, everyday language.
    - description (required text)
    - videoUrl (validated URL)
    - category (required text)
+   - likes (integer, default 0)
+
+3. **Comments Table**:
+   - id (UUID primary key)
+   - videoId (UUID foreign key to videos)
+   - text (required text)
+   - createdAt (timestamp with default now())
+
+4. **Questions Table**:
+   - id (UUID primary key)
+   - videoId (UUID foreign key to videos)
+   - text (required text)
+   - createdAt (timestamp with default now())
 
 **Validation Strategy**:
 - Shared Zod schemas between client and server
-- Insert schemas omit auto-generated fields (id)
+- Insert schemas omit auto-generated fields (id, createdAt)
 - URL validation for video URLs
 - Required field validation for all user inputs
+- Foreign key constraints for data integrity
 
 ### External Dependencies
 
@@ -126,8 +147,32 @@ Preferred communication style: Simple, everyday language.
 **Database Migration**:
 - Migrated from in-memory storage to PostgreSQL for persistent data storage
 - All videos now persist across server restarts
+- Added comments and questions tables with timestamp tracking
+- Added likes column to videos table
 
-**Feature Additions**:
+**Major Feature: Student Video Feed** (NEW):
+1. **Interactive Video Display**: Grid layout with embedded YouTube/video iframes
+2. **Like System**: 
+   - POST /api/videos/:id/like endpoint increments video likes
+   - Real-time like count updates without page refresh
+   - TanStack Query mutations for optimistic UI updates
+3. **Comment System**:
+   - Expandable comment sections per video
+   - GET /api/videos/:id/comments and POST /api/videos/:id/comments endpoints
+   - Comments display with formatted timestamps
+   - Real-time updates using `refetchQueries` with `staleTime: 0`
+4. **Question Submission**:
+   - Modal dialog for asking questions about specific videos
+   - POST /api/questions endpoint stores questions with video association
+   - Toast notifications for successful submissions
+
+**Navigation & Routing**:
+- Added navigation bar with "Tutor Dashboard" and "Student Feed" buttons
+- Tutor view: /tutor route for video management
+- Student view: /student route for interactive video feed
+- Active route highlighting in navigation
+
+**Tutor Dashboard Features**:
 1. **Video Editing**: Modal-based edit functionality with form validation
 2. **Search & Filter**: Client-side search by title/description + category-based filtering
 3. **Pagination**: Display 12 videos per page with automatic page correction after deletions
@@ -137,3 +182,18 @@ Preferred communication style: Simple, everyday language.
 - Fixed Select component form reset issue by using `value` prop instead of `defaultValue`
 - Fixed pagination bug where users got stuck on empty pages after deleting videos on later pages
 - Implemented automatic page clamping when totalPages changes
+- Fixed comment display bug by changing from `invalidateQueries` to `refetchQueries` to ensure immediate UI updates
+
+**API Endpoints Added**:
+- POST /api/videos/:id/like - Increment video likes
+- GET /api/videos/:id/comments - Fetch comments for a video
+- POST /api/videos/:id/comments - Add a comment to a video
+- POST /api/questions - Submit a question about a video
+- GET /api/questions - Fetch all questions (for future admin view)
+
+**Storage Interface Updates**:
+- Added `likeVideo(id: string)` method
+- Added `getComments(videoId: string)` method
+- Added `addComment(data)` method
+- Added `getQuestions()` method
+- Added `addQuestion(data)` method
