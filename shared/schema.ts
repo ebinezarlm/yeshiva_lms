@@ -63,16 +63,25 @@ export const questions = pgTable("questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   videoId: varchar("video_id").notNull(),
   text: text("text").notNull(),
+  answer: text("answer"),
+  answeredAt: timestamp("answered_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertQuestionSchema = createInsertSchema(questions).omit({
   id: true,
   createdAt: true,
+  answeredAt: true,
+  answer: true,
 }).extend({
   videoId: z.string(),
   text: z.string().min(1, "Question text is required"),
 });
 
+export const answerQuestionSchema = z.object({
+  answer: z.string().min(1, "Answer text is required"),
+});
+
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type AnswerQuestion = z.infer<typeof answerQuestionSchema>;
 export type Question = typeof questions.$inferSelect;
