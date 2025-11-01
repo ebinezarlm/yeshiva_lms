@@ -1,0 +1,159 @@
+Build a Student Dashboard frontend for a Learning Management System (LMS) using React + Tailwind CSS.
+
+The dashboard should follow the same design system as the Tutor and Admin dashboards — sidebar navigation, top bar with search/profile, blue-gray & indigo color theme, and responsive Tailwind layout.
+
+🧩 Dashboard Structure
+
+Sidebar Navigation Links:
+
+Dashboard (Overview)
+
+My Playlists
+
+Explore Courses
+
+My Subscriptions
+
+Comments & Q&A
+
+Profile Settings
+
+🏠 1. Dashboard (Overview Page)
+
+Show quick stats for the student:
+
+Total Playlists Subscribed
+
+Total Videos Watched
+
+Pending Subscriptions
+
+Active Subscriptions
+
+Display a “Continue Watching” section showing last 3 videos viewed (thumbnail + title + progress bar).
+
+Optional: Add a recommendation carousel (“Recommended for You”) with dummy data.
+
+🎞️ 2. My Playlists Page
+
+Display all playlists the student has subscribed to in a card/grid layout.
+
+Each card includes:
+
+Playlist Title
+
+Tutor Name
+
+Category
+
+Progress bar (e.g., 4/10 videos watched)
+
+“View Playlist” button
+
+On clicking “View Playlist”, show a playlist page listing all videos:
+
+Each video row: Thumbnail, Title, Duration, Like button, Comment count, “Watch Now” button
+
+Videos open in a video player section (embed player) with like/comment options below.
+
+🔍 3. Explore Courses Page
+
+Display all public playlists/courses available on the platform (dummy data allowed).
+
+Include filters and search:
+
+Filter by Category (dropdown)
+
+Filter by Tutor Name
+
+Sort by Most Viewed / Newest
+
+Each course card shows:
+
+Thumbnail
+
+Title
+
+Tutor Name
+
+Category
+
+Number of Videos
+
+“Subscribe” button
+
+Clicking Subscribe should open a modal confirming subscription and payment details (mocked).
+
+💳 4. My Subscriptions Page
+
+Display all active and expired subscriptions in a table or card layout:
+| Playlist | Tutor | Start Date | End Date | Status (Active / Expired) | Amount Paid | Invoice |
+
+Each row has:
+
+“Renew” button (dummy functionality)
+
+“Download Invoice” button
+
+Optional summary cards on top:
+
+Total Subscriptions
+
+Active Subscriptions
+
+Expired Subscriptions
+
+Total Amount Spent
+
+💬 5. Comments & Q&A Page
+
+Display comments made by the student and replies from tutors.
+
+Table columns:
+| Video Title | Comment / Question | Tutor Reply | Date | Status (Answered / Pending) |
+
+Add a filter for “Unanswered” and “Answered.”
+
+Add ability to post a new question (opens modal with dropdown to select playlist/video).
+
+⚙️ 6. Profile Settings Page
+
+Editable form for student profile:
+
+Name, Email, Profile Picture Upload
+
+Subscription Email Preferences (checkboxes)
+
+Change Password
+
+Save & Cancel buttons
+
+Use Tailwind form elements and clean responsive design.
+
+🎨 Styling & Layout
+
+Consistent with Admin and Tutor dashboards:
+
+Sidebar with icons and active link highlighting
+
+Top navigation bar with search, notifications, and profile dropdown
+
+Tailwind cards, modals, grids, and responsive design
+
+Rounded corners, shadow effects, proper spacing
+
+Color Palette: Blue-gray, indigo, and white tones
+
+Fully responsive for desktop, tablet, and mobile
+
+⚡ Optional Enhancements
+
+“Dark Mode” toggle synced with the main theme
+
+“Watch Later” feature for bookmarked videos
+
+“Liked Videos” section
+
+Add animation transitions between pages using Framer Motion
+
+Use loading skeletons for videos and playlist cards for better UX

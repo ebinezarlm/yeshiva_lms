@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -309,6 +309,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: "Invalid answer data", details: error.errors });
       } else {
         res.status(500).json({ error: "Failed to answer question" });
+      }
+    }
+  });
+
+  app.get("/api/subscriptions", async (req, res) => {
+    try {
+      const subscriptions = await storage.getAllSubscriptions();
+      res.json(subscriptions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.get("/api/subscriptions/student/:email", async (req, res) => {
+    try {
+      const { email } = req.params;
+      const subscriptions = await storage.getSubscriptionsByEmail(email);
+      res.json(subscriptions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.post("/api/subscriptions", async (req, res) => {
+    try {
+      const validatedData = insertSubscriptionSchema.parse(req.body);
+      const subscription = await storage.createSubscription(validatedData);
+      res.status(201).json(subscription);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid subscription data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create subscription" });
+      }
+    }
+  });
+
+  app.patch("/api/subscriptions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const subscription = await storage.updateSubscription(id, req.body);
+      
+      if (!subscription) {
+        res.status(404).json({ error: "Subscription not found" });
+        return;
+      }
+      
+      res.status(200).json(subscription);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  });
+
+  app.get("/api/watch-progress/student/:email", async (req, res) => {
+    try {
+      const { email } = req.params;
+      const progress = await storage.getWatchProgressByEmail(email);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch watch progress" });
+    }
+  });
+
+  app.get("/api/watch-progress/student/:email/playlist/:playlistId", async (req, res) => {
+    try {
+      const { email, playlistId } = req.params;
+      const progress = await storage.getWatchProgressByPlaylist(email, playlistId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch playlist progress" });
+    }
+  });
+
+  app.post("/api/watch-progress", async (req, res) => {
+    try {
+      const validatedData = insertWatchProgressSchema.parse(req.body);
+      const progress = await storage.upsertWatchProgress(validatedData);
+      res.status(200).json(progress);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid progress data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to save watch progress" });
       }
     }
   });

@@ -21,15 +21,27 @@ export const playlists = pgTable("playlists", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
+  tutorName: text("tutor_name").notNull().default("Unknown Tutor"),
+  category: text("category").notNull().default("General"),
+  thumbnail: text("thumbnail"),
+  isPublic: integer("is_public").notNull().default(1),
+  videoCount: integer("video_count").notNull().default(0),
+  viewCount: integer("view_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertPlaylistSchema = createInsertSchema(playlists).omit({
   id: true,
   createdAt: true,
+  videoCount: true,
+  viewCount: true,
 }).extend({
   name: z.string().min(1, "Playlist name is required"),
   description: z.string().optional(),
+  tutorName: z.string().default("Unknown Tutor"),
+  category: z.string().default("General"),
+  thumbnail: z.string().optional(),
+  isPublic: z.number().default(1),
 });
 
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
@@ -41,6 +53,7 @@ export const videos = pgTable("videos", {
   description: text("description").notNull(),
   videoUrl: text("video_url").notNull(),
   category: text("category").notNull(),
+  duration: text("duration").default("0:00"),
   likes: integer("likes").notNull().default(0),
   playlistId: varchar("playlist_id"),
 });
@@ -53,6 +66,7 @@ export const insertVideoSchema = createInsertSchema(videos).omit({
   description: z.string().min(1, "Description is required"),
   videoUrl: z.string().url("Must be a valid URL"),
   category: z.string().min(1, "Category is required"),
+  duration: z.string().optional(),
   playlistId: z.string().optional(),
 });
 
@@ -105,3 +119,54 @@ export const answerQuestionSchema = z.object({
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type AnswerQuestion = z.infer<typeof answerQuestionSchema>;
 export type Question = typeof questions.$inferSelect;
+
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentEmail: text("student_email").notNull(),
+  studentName: text("student_name").notNull(),
+  playlistId: varchar("playlist_id").notNull(),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").notNull().default("active"),
+  amountPaid: integer("amount_paid").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  studentEmail: z.string().email("Must be a valid email"),
+  studentName: z.string().min(1, "Student name is required"),
+  playlistId: z.string().min(1, "Playlist ID is required"),
+  startDate: z.date().optional(),
+  endDate: z.date(),
+  status: z.enum(["active", "expired"]).default("active"),
+  amountPaid: z.number().min(0, "Amount must be positive"),
+});
+
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+export const watchProgress = pgTable("watch_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentEmail: text("student_email").notNull(),
+  videoId: varchar("video_id").notNull(),
+  playlistId: varchar("playlist_id").notNull(),
+  progress: integer("progress").notNull().default(0),
+  completed: integer("completed").notNull().default(0),
+  lastWatched: timestamp("last_watched").notNull().defaultNow(),
+});
+
+export const insertWatchProgressSchema = createInsertSchema(watchProgress).omit({
+  id: true,
+}).extend({
+  studentEmail: z.string().email(),
+  videoId: z.string(),
+  playlistId: z.string(),
+  progress: z.number().min(0).max(100),
+  completed: z.number().min(0).max(1),
+});
+
+export type InsertWatchProgress = z.infer<typeof insertWatchProgressSchema>;
+export type WatchProgress = typeof watchProgress.$inferSelect;

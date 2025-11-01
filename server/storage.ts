@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, users, videos, comments, questions, playlists } from "@shared/schema";
+import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, users, videos, comments, questions, playlists, subscriptions, watchProgress } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -27,6 +27,16 @@ export interface IStorage {
   getQuestionsByVideoId(videoId: string): Promise<Question[]>;
   createQuestion(question: InsertQuestion): Promise<Question>;
   answerQuestion(id: string, answer: string): Promise<Question | undefined>;
+  
+  getAllSubscriptions(): Promise<Subscription[]>;
+  getSubscriptionsByEmail(email: string): Promise<Subscription[]>;
+  getSubscription(id: string): Promise<Subscription | undefined>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: string, updates: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  
+  getWatchProgressByEmail(email: string): Promise<WatchProgress[]>;
+  getWatchProgressByPlaylist(email: string, playlistId: string): Promise<WatchProgress[]>;
+  upsertWatchProgress(progress: InsertWatchProgress): Promise<WatchProgress>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -149,6 +159,73 @@ export class DatabaseStorage implements IStorage {
       .where(eq(questions.id, id))
       .returning();
     return question || undefined;
+  }
+
+  async getAllSubscriptions(): Promise<Subscription[]> {
+    return await db.select().from(subscriptions);
+  }
+
+  async getSubscriptionsByEmail(email: string): Promise<Subscription[]> {
+    return await db.select().from(subscriptions).where(eq(subscriptions.studentEmail, email));
+  }
+
+  async getSubscription(id: string): Promise<Subscription | undefined> {
+    const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    return subscription || undefined;
+  }
+
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const [subscription] = await db
+      .insert(subscriptions)
+      .values(insertSubscription)
+      .returning();
+    return subscription;
+  }
+
+  async updateSubscription(id: string, updates: Partial<InsertSubscription>): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .update(subscriptions)
+      .set(updates)
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return subscription || undefined;
+  }
+
+  async getWatchProgressByEmail(email: string): Promise<WatchProgress[]> {
+    return await db.select().from(watchProgress).where(eq(watchProgress.studentEmail, email));
+  }
+
+  async getWatchProgressByPlaylist(email: string, playlistId: string): Promise<WatchProgress[]> {
+    return await db.select().from(watchProgress).where(
+      and(
+        eq(watchProgress.studentEmail, email),
+        eq(watchProgress.playlistId, playlistId)
+      )
+    );
+  }
+
+  async upsertWatchProgress(insertProgress: InsertWatchProgress): Promise<WatchProgress> {
+    const existing = await db.select().from(watchProgress).where(
+      and(
+        eq(watchProgress.studentEmail, insertProgress.studentEmail),
+        eq(watchProgress.videoId, insertProgress.videoId)
+      )
+    );
+
+    if (existing.length > 0) {
+      const [progress] = await db
+        .update(watchProgress)
+        .set({ ...insertProgress, lastWatched: new Date() })
+        .where(eq(watchProgress.id, existing[0].id))
+        .returning();
+      return progress;
+    } else {
+      const [progress] = await db
+        .insert(watchProgress)
+        .values(insertProgress)
+        .returning();
+      return progress;
+    }
   }
 }
 
