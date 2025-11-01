@@ -17,6 +17,24 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export const playlists = pgTable("playlists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPlaylistSchema = createInsertSchema(playlists).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1, "Playlist name is required"),
+  description: z.string().optional(),
+});
+
+export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
+export type Playlist = typeof playlists.$inferSelect;
+
 export const videos = pgTable("videos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -24,6 +42,7 @@ export const videos = pgTable("videos", {
   videoUrl: text("video_url").notNull(),
   category: text("category").notNull(),
   likes: integer("likes").notNull().default(0),
+  playlistId: varchar("playlist_id"),
 });
 
 export const insertVideoSchema = createInsertSchema(videos).omit({
@@ -34,6 +53,7 @@ export const insertVideoSchema = createInsertSchema(videos).omit({
   description: z.string().min(1, "Description is required"),
   videoUrl: z.string().url("Must be a valid URL"),
   category: z.string().min(1, "Category is required"),
+  playlistId: z.string().optional(),
 });
 
 export type InsertVideo = z.infer<typeof insertVideoSchema>;

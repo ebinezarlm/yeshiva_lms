@@ -1,0 +1,96 @@
+Add & Categorize Video into Playlist (Tutor Panel)
+
+Build a React + Tailwind CSS component named VideoPlaylistManager.jsx.
+
+🎯 Purpose:
+
+Allow tutors to upload (or link) new videos and assign them to playlists (categories), view existing playlists, and manage videos within them.
+
+✅ Functional Requirements:
+
+Add Video Form:
+
+Fields:
+
+Video Title (text)
+
+Description (textarea)
+
+Video URL (from Drive) (text input)
+
+Select Playlist (dropdown)
+
+New Playlist Name (text input – appears if tutor wants to create a new playlist)
+
+Submit Button → “Add Video”
+
+When submitting:
+
+If a new playlist name is entered, create a new playlist before adding the video.
+
+Convert Google Drive share link → embed link:
+
+Input: https://drive.google.com/file/d/FILE_ID/view?usp=sharing  
+Output: https://drive.google.com/uc?export=preview&id=FILE_ID  
+
+
+Send a POST request using Axios to /api/videos with JSON payload:
+
+{
+  "title": "Video Title",
+  "description": "Description",
+  "video_url": "https://drive.google.com/uc?export=preview&id=FILE_ID",
+  "playlist_id": "selected_playlist_id"
+}
+
+
+If creating a new playlist, send POST to /api/playlists first, then use the returned playlist_id.
+
+Show success/error alerts using a simple state message.
+
+Playlist & Video Display Section:
+
+Fetch playlists from /api/playlists (GET).
+
+Display playlists in collapsible cards (accordion style).
+
+Inside each playlist card, list all videos assigned to that playlist:
+
+Show Title, Description, and Video Preview (iframe).
+
+Include Delete Video button → calls DELETE /api/videos/:id.
+
+Include Edit button (optional placeholder).
+
+Use Tailwind grid/flex layout for responsive video cards.
+
+UX / UI Requirements:
+
+Clean, card-based layout using Tailwind (shadow-lg, rounded-2xl, p-6, space-y-4).
+
+Use Tailwind colors: neutral background, soft hover effects.
+
+Place “Add Video” form at the top and playlists section below.
+
+Responsive on mobile — stack layout vertically.
+
+Technical Notes:
+
+Use Axios for all API calls.
+
+Manage state with React’s useState and useEffect.
+
+Handle loading and error states gracefully.
+
+Export component as default:
+
+export default VideoPlaylistManager;
+
+
+(Optional Enhancements):
+
+Add “Add Playlist” modal.
+
+Allow drag-and-drop to reorder videos within a playlist.
+
+Add search/filter bar to find videos or playlists quickly.

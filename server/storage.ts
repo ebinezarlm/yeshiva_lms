@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, users, videos, comments, questions } from "@shared/schema";
+import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, users, videos, comments, questions, playlists } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -6,6 +6,12 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  getAllPlaylists(): Promise<Playlist[]>;
+  getPlaylist(id: string): Promise<Playlist | undefined>;
+  createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
+  deletePlaylist(id: string): Promise<boolean>;
+  getVideosByPlaylistId(playlistId: string): Promise<Video[]>;
   
   getAllVideos(): Promise<Video[]>;
   getVideo(id: string): Promise<Video | undefined>;
@@ -40,6 +46,32 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async getAllPlaylists(): Promise<Playlist[]> {
+    return await db.select().from(playlists);
+  }
+
+  async getPlaylist(id: string): Promise<Playlist | undefined> {
+    const [playlist] = await db.select().from(playlists).where(eq(playlists.id, id));
+    return playlist || undefined;
+  }
+
+  async createPlaylist(insertPlaylist: InsertPlaylist): Promise<Playlist> {
+    const [playlist] = await db
+      .insert(playlists)
+      .values(insertPlaylist)
+      .returning();
+    return playlist;
+  }
+
+  async deletePlaylist(id: string): Promise<boolean> {
+    const result = await db.delete(playlists).where(eq(playlists.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getVideosByPlaylistId(playlistId: string): Promise<Video[]> {
+    return await db.select().from(videos).where(eq(videos.playlistId, playlistId));
   }
 
   async getAllVideos(): Promise<Video[]> {

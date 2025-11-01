@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -106,6 +106,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ error: "Failed to create comment" });
       }
+    }
+  });
+
+  app.get("/api/playlists", async (req, res) => {
+    try {
+      const playlists = await storage.getAllPlaylists();
+      const playlistsWithVideos = await Promise.all(
+        playlists.map(async (playlist) => {
+          const videos = await storage.getVideosByPlaylistId(playlist.id);
+          return { ...playlist, videos };
+        })
+      );
+      res.json(playlistsWithVideos);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch playlists" });
+    }
+  });
+
+  app.post("/api/playlists", async (req, res) => {
+    try {
+      const validatedData = insertPlaylistSchema.parse(req.body);
+      const playlist = await storage.createPlaylist(validatedData);
+      res.status(201).json(playlist);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid playlist data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create playlist" });
+      }
+    }
+  });
+
+  app.delete("/api/playlists/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePlaylist(id);
+      
+      if (!deleted) {
+        res.status(404).json({ error: "Playlist not found" });
+        return;
+      }
+      
+      res.status(200).json({ message: "Playlist deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete playlist" });
     }
   });
 
