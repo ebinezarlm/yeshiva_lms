@@ -15,6 +15,12 @@ import NotFound from '@/pages/not-found';
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
 import TutorDashboardPage from '@/pages/tutor/TutorDashboardPage';
 import StudentDashboardPage from '@/pages/student/StudentDashboardPage';
+import StudentPlaylistsPage from '@/pages/student/StudentPlaylistsPage';
+import StudentPlaylistDetailPage from '@/pages/student/StudentPlaylistDetailPage';
+import StudentExploreCoursesPage from '@/pages/student/StudentExploreCoursesPage';
+import StudentSubscriptionsPage from '@/pages/student/StudentSubscriptionsPage';
+import StudentQnaPage from '@/pages/student/StudentQnaPage';
+import StudentProfilePage from '@/pages/student/StudentProfilePage';
 
 import TutorDashboard from '@/pages/TutorDashboard';
 import StudentVideoFeed from '@/pages/StudentVideoFeed';
@@ -173,43 +179,37 @@ function Router() {
 
         <Route path="/student/playlists">
           <ProtectedRoute allowedRoles={['student']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">My Playlists</h2>
-              <p className="text-muted-foreground">Your enrolled playlists will appear here</p>
-            </div>
+            <StudentPlaylistsPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/student/playlist/:id">
+          <ProtectedRoute allowedRoles={['student']}>
+            <StudentPlaylistDetailPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/student/explore">
           <ProtectedRoute allowedRoles={['student']}>
-            <StudentVideoFeed />
+            <StudentExploreCoursesPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/student/subscriptions">
           <ProtectedRoute allowedRoles={['student']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">My Subscriptions</h2>
-              <p className="text-muted-foreground">Subscription management interface coming soon</p>
-            </div>
+            <StudentSubscriptionsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/student/qna">
           <ProtectedRoute allowedRoles={['student']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Q&A</h2>
-              <p className="text-muted-foreground">Your questions and answers will appear here</p>
-            </div>
+            <StudentQnaPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/student/profile">
           <ProtectedRoute allowedRoles={['student']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Profile</h2>
-              <p className="text-muted-foreground">Profile settings coming soon</p>
-            </div>
+            <StudentProfilePage />
           </ProtectedRoute>
         </Route>
 
