@@ -16,7 +16,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Redirect to="/dashboard" />;
+    // Redirect to user's role-specific dashboard instead of /dashboard to avoid redirect loops
+    const userDashboard = `/${user.role}/dashboard`;
+    return <Redirect to={userDashboard} />;
   }
 
   return <>{children}</>;
