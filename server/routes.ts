@@ -7,6 +7,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { fileTypeFromFile } from "file-type";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,15 +24,21 @@ const upload = multer({
     },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, uniqueSuffix + path.extname(file.originalname));
+      const sanitizedExt = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '');
+      const allowedExtensions = ['.mp4', '.webm', '.ogg', '.mov'];
+      const ext = allowedExtensions.includes(sanitizedExt) ? sanitizedExt : '.mp4';
+      cb(null, `video-${uniqueSuffix}${ext}`);
     }
   }),
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
-    if (allowedMimes.includes(file.mimetype)) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.mp4', '.webm', '.ogg', '.mov'];
+    
+    if (allowedMimes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only video files are allowed.'));
+      cb(new Error('Invalid file type. Only video files (MP4, WebM, OGG, MOV) are allowed.'));
     }
   },
   limits: {
@@ -70,10 +77,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      const fileType = await fileTypeFromFile(req.file.path);
+      const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+      
+      if (!fileType || !allowedTypes.includes(fileType.mime)) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error("Failed to delete uploaded file:", unlinkError);
+        }
+        res.status(400).json({ 
+          error: "Invalid file signature. File must be a valid video file (MP4, WebM, OGG, or QuickTime)." 
+        });
+        return;
+      }
+
       const { title, description, category, playlistId } = req.body;
 
       if (!title || !description || !category) {
-        fs.unlinkSync(req.file.path);
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error("Failed to delete uploaded file:", unlinkError);
+        }
         res.status(400).json({ error: "Missing required fields: title, description, or category" });
         return;
       }
@@ -92,7 +118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(video);
     } catch (error) {
       if (req.file) {
-        fs.unlinkSync(req.file.path);
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error("Failed to delete uploaded file:", unlinkError);
+        }
       }
       
       if (error instanceof z.ZodError) {

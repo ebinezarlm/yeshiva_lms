@@ -202,6 +202,15 @@ export default function UnifiedVideoManager() {
   };
 
   const onSubmit = async (data: VideoFormData) => {
+    if (videoSource !== "upload" && !videoUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a video URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
     let playlistId = data.playlistId;
 
     if (isCreatingNewPlaylist && data.newPlaylistName) {
