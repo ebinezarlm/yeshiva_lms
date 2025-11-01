@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CreditCard, DollarSign, TrendingUp } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const stats = [
   {
@@ -36,6 +37,26 @@ const stats = [
   },
 ];
 
+const revenueData = [
+  { month: 'Jan', revenue: 45000 },
+  { month: 'Feb', revenue: 52000 },
+  { month: 'Mar', revenue: 61000 },
+  { month: 'Apr', revenue: 58000 },
+  { month: 'May', revenue: 72000 },
+  { month: 'Jun', revenue: 89000 },
+  { month: 'Jul', revenue: 95000 },
+  { month: 'Aug', revenue: 102000 },
+  { month: 'Sep', revenue: 108000 },
+  { month: 'Oct', revenue: 115000 },
+  { month: 'Nov', revenue: 124500 },
+  { month: 'Dec', revenue: 135000 },
+];
+
+const subscriptionData = [
+  { name: 'Active', value: 856, color: '#10b981' },
+  { name: 'Expired', value: 378, color: '#ef4444' },
+];
+
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
@@ -68,6 +89,64 @@ export default function AdminDashboardPage() {
         })}
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Growth</CardTitle>
+            <CardDescription>Monthly revenue over the past year</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  name="Revenue (₹)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription Status</CardTitle>
+            <CardDescription>Active vs Expired subscriptions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={subscriptionData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {subscriptionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
@@ -75,7 +154,7 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Navigate using the sidebar to access user management, analytics, and other administrative features.
+            Navigate using the sidebar to access user management, playlists, payments, and settings.
           </p>
         </CardContent>
       </Card>

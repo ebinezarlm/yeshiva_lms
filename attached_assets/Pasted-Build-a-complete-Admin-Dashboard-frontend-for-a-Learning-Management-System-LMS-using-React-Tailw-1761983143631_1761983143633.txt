@@ -1,0 +1,179 @@
+Build a complete Admin Dashboard frontend for a Learning Management System (LMS) using React + Tailwind CSS.
+
+The dashboard should have multiple sections accessible from a sidebar navigation:
+
+1. Dashboard (Overview)
+
+
+2. Users
+
+
+3. Playlists
+
+
+4. Payments
+
+
+5. Settings
+
+
+
+
+---
+
+🧩 1. Dashboard (Overview Page)
+
+Display key statistics using cards and charts (dummy data ok):
+
+Total Users
+
+Active Subscriptions
+
+Total Revenue
+
+Expiring Subscriptions
+
+
+Include a simple line/bar chart to show revenue growth over time
+
+Optional: Add a pie chart showing active vs expired subscriptions
+
+Add a dark mode toggle in the top bar
+
+
+
+---
+
+👥 2. Users Page
+
+Display a table of all registered users with columns:
+| User Name | Email | Playlist(s) | Subscription Start | Due Date | Amount Paid | Status | Invoice |
+
+Include search and filter dropdown (Active / Expired / All)
+
+Each row should have:
+
+“View Details” button → opens a modal showing full user profile and playlist history
+
+“Download Invoice” button → triggers invoice download (placeholder link)
+
+
+Add pagination for long lists
+
+Use cards or hover effects for better UI readability
+
+
+
+---
+
+🎞️ 3. Playlists Page
+
+Display all playlists created by tutors in card view
+Each card shows:
+
+Playlist Title
+
+Category (e.g., Math, Science, Coding)
+
+Number of videos
+
+Tutor Name
+
+Date Created
+
+
+Include a button to Add New Playlist → opens a modal form with fields:
+
+Playlist Title
+
+Description
+
+Category (dropdown)
+
+Add Videos (from YouTube/Vimeo, Google Drive, or File Upload)
+
+
+Include options to:
+
+Edit Playlist details
+
+Delete Playlist
+
+View Playlist content (opens modal or separate page)
+
+
+Use a grid layout with responsive Tailwind design
+
+
+
+---
+
+💳 4. Payments Page
+
+Display a table with columns:
+| User Name | Email | Playlist | Payment Date | Amount | Status (Success / Pending / Failed) | Invoice |
+
+Include filters by status and date range
+
+Show summary cards on top:
+
+Total Earnings
+
+Pending Payments
+
+Failed Transactions
+
+
+Optional: Small bar chart showing earnings per month
+
+
+
+---
+
+⚙️ 5. Settings Page
+
+Simple layout with forms to configure:
+
+Subscription Pricing (Monthly, Yearly)
+
+Currency and Tax %
+
+Admin Profile (Name, Email, Password)
+
+Logout Button
+
+
+Use Tailwind forms and validation UI
+
+
+
+---
+
+🎨 Styling & UI Requirements
+
+Clean, professional Tailwind design
+
+Sidebar with icons and labels (Dashboard, Users, Playlists, Payments, Settings)
+
+Top navigation bar with search, notifications, and admin profile dropdown
+
+Consistent spacing, rounded corners, shadowed cards
+
+Mobile-responsive (stack layout on small screens)
+
+Color palette: blue-gray, indigo, and white tones
+
+
+
+---
+
+⚡ Optional Enhancements
+
+Implement dark mode toggle
+
+Add loading skeletons for table and chart data
+
+Animate transitions between sidebar pages using Framer Motion (optional)
+
+
+The output should be a React + Tailwind project structure ready to integrate with a Python backend later.

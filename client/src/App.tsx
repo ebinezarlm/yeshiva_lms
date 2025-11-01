@@ -13,6 +13,10 @@ import RoleRedirect from '@/pages/RoleRedirect';
 import NotFound from '@/pages/not-found';
 
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
+import AdminUsersPage from '@/pages/admin/AdminUsersPage';
+import AdminPlaylistsPage from '@/pages/admin/AdminPlaylistsPage';
+import AdminPaymentsPage from '@/pages/admin/AdminPaymentsPage';
+import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
 import TutorDashboardPage from '@/pages/tutor/TutorDashboardPage';
 import TutorPlaylistsPage from '@/pages/tutor/TutorPlaylistsPage';
 import TutorUploadVideosPage from '@/pages/tutor/TutorUploadVideosPage';
@@ -80,55 +84,25 @@ function Router() {
 
         <Route path="/admin/users">
           <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">User Management</h2>
-              <p className="text-muted-foreground">User management interface coming soon</p>
-            </div>
+            <AdminUsersPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/admin/playlists">
           <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Playlist Management</h2>
-              <p className="text-muted-foreground">Playlist management interface coming soon</p>
-            </div>
+            <AdminPlaylistsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/admin/payments">
           <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Payments</h2>
-              <p className="text-muted-foreground">Payment management interface coming soon</p>
-            </div>
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/admin/invoices">
-          <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Invoices</h2>
-              <p className="text-muted-foreground">Invoice management interface coming soon</p>
-            </div>
-          </ProtectedRoute>
-        </Route>
-
-        <Route path="/admin/analytics">
-          <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Analytics</h2>
-              <p className="text-muted-foreground">Analytics dashboard coming soon</p>
-            </div>
+            <AdminPaymentsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/admin/settings">
           <ProtectedRoute allowedRoles={['admin']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Settings</h2>
-              <p className="text-muted-foreground">Settings panel coming soon</p>
-            </div>
+            <AdminSettingsPage />
           </ProtectedRoute>
         </Route>
 
