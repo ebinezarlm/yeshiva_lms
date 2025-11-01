@@ -60,6 +60,20 @@ export default function StudentVideoFeed() {
         return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
       }
       
+      // Handle Google Drive URLs
+      if (urlObj.hostname.includes("drive.google.com")) {
+        // If it's already in embed/preview format, return as-is
+        if (url.includes("/preview") || url.includes("uc?export=preview")) {
+          return url;
+        }
+        
+        // Extract FILE_ID from various Google Drive URL formats
+        const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (fileIdMatch && fileIdMatch[1]) {
+          return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+        }
+      }
+      
       return null;
     } catch {
       return null;

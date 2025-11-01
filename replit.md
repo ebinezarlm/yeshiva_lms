@@ -66,6 +66,72 @@ The platform follows Material Design principles with Notion-inspired aesthetics.
 
 ---
 
+## Latest Updates (November 1, 2025 - Google Drive Video Integration)
+
+**AddDriveVideo Component**:
+- Created new component for adding videos from Google Drive (`client/src/components/AddDriveVideo.tsx`)
+- Allows tutors to paste Google Drive share links instead of uploading files directly
+- Integrated into Tutor Dashboard via tabs (YouTube/Vimeo vs. Google Drive)
+
+**Google Drive Link Conversion**:
+- Automatically converts various Google Drive URL formats to embeddable format
+- Supported input formats:
+  - `https://drive.google.com/file/d/FILE_ID/view?usp=sharing`
+  - `https://drive.google.com/open?id=FILE_ID`
+  - `https://drive.google.com/uc?export=preview&id=FILE_ID`
+- Output format: `https://drive.google.com/file/d/FILE_ID/preview` (2025 standard)
+
+**AddDriveVideo Component Features**:
+1. **Form Fields**:
+   - Video Title (text input)
+   - Description (textarea)
+   - Google Drive Video Link (text input with validation)
+   - Category / Subject (dropdown: Tutorial, Lecture, Demo, Review)
+2. **Validation** (using Zod):
+   - All fields required
+   - URL must be valid and contain "drive.google.com"
+   - Extracts FILE_ID and validates format
+3. **Live Preview**:
+   - Shows iframe preview as soon as valid Google Drive URL is pasted
+   - Preview updates in real-time as URL changes
+   - Includes helpful message about sharing permissions
+4. **Submission**:
+   - Converts URL to embed format before saving
+   - Posts to `/api/videos` endpoint (same as YouTube/Vimeo)
+   - Shows success toast and clears form
+   - Error handling with descriptive messages
+
+**StudentVideoFeed Enhancement**:
+- Updated `getEmbedUrl` function to support Google Drive videos
+- Handles both pre-converted and unconverted Google Drive URLs
+- Google Drive videos display in iframes alongside YouTube/Vimeo videos
+- All interactive features (likes, comments, Q&A) work identically for all video sources
+
+**UI/UX Improvements**:
+- Tab interface in Tutor Dashboard for choosing video source
+- Two tabs: "YouTube / Vimeo" and "Google Drive"
+- Seamless switching between upload methods
+- Consistent styling and behavior across both forms
+- Tailwind CSS with Shadcn components
+- Dark mode support
+- Responsive design
+
+**Testing**:
+- All end-to-end tests passed successfully
+- Verified Google Drive URL validation and conversion
+- Tested live preview functionality
+- Confirmed videos display correctly in Student Feed
+- Verified no regression for YouTube/Vimeo videos
+- Tested all video interactions (likes, comments, Q&A)
+- Validated different Google Drive URL format handling
+
+**Important Notes**:
+- Google Drive videos must have sharing set to "Anyone with the link can view"
+- Uses the 2025 standard embed format `/preview` (more reliable than older formats)
+- Web search confirmed this is the current recommended method for embedding Drive videos
+
+---
+
 ## Latest Updates (October 31, 2025 - Routing & Navigation Enhancement)
 
 **Enhanced Navigation System**:

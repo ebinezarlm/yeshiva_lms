@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Video as VideoType, InsertVideo } from "@shared/schema";
 import { insertVideoSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AddVideoForm from "@/components/AddVideoForm";
+import AddDriveVideo from "@/components/AddDriveVideo";
 
 const VIDEOS_PER_PAGE = 12;
 
@@ -221,7 +223,18 @@ export default function TutorDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
-            <AddVideoForm />
+            <Tabs defaultValue="youtube" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="youtube" data-testid="tab-youtube">YouTube / Vimeo</TabsTrigger>
+                <TabsTrigger value="drive" data-testid="tab-google-drive">Google Drive</TabsTrigger>
+              </TabsList>
+              <TabsContent value="youtube">
+                <AddVideoForm />
+              </TabsContent>
+              <TabsContent value="drive">
+                <AddDriveVideo />
+              </TabsContent>
+            </Tabs>
           </div>
 
           <div className="lg:col-span-2">
