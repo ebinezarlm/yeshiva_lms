@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import TutorDashboard from "@/pages/TutorDashboard";
 import StudentVideoFeed from "@/pages/StudentVideoFeed";
 import LoginPage from "@/pages/LoginPage";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/not-found";
 
 function Navigation() {
@@ -52,9 +53,12 @@ function Navigation() {
 }
 
 function Router() {
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith('/admin');
+
   return (
     <>
-      <Navigation />
+      {!isAdminRoute && <Navigation />}
       <Switch>
         <Route path="/">
           <Redirect to="/student" />
@@ -62,6 +66,7 @@ function Router() {
         <Route path="/tutor" component={TutorDashboard} />
         <Route path="/student" component={StudentVideoFeed} />
         <Route path="/login" component={LoginPage} />
+        <Route path="/admin" component={AdminDashboard} />
         <Route component={NotFound} />
       </Switch>
     </>

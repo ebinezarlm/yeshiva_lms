@@ -1,0 +1,151 @@
+Admin Dashboard (Front-End)
+
+Create a React + Tailwind CSS Admin Dashboard UI for a Learning Management System (LMS).
+
+🧩 Requirements / Features
+
+Dashboard Overview Page
+
+A responsive layout with a sidebar and a top navbar.
+
+Sidebar sections:
+
+Dashboard (overview)
+
+Users
+
+Subscriptions
+
+Invoices
+
+Settings
+
+Top navbar should include:
+
+App title: “Admin Dashboard”
+
+Search bar
+
+Profile dropdown (Admin name + Logout option)
+
+Dashboard Widgets (Top Section)
+
+Display four summary cards using Tailwind grid layout:
+
+Total Users
+
+Active Subscriptions
+
+Total Revenue
+
+Expiring Soon
+
+Each card should show a title, count/value, and icon.
+
+Users Table View (Main Section)
+
+Create a data table listing all users with the following columns:
+
+User Name
+
+Email
+
+Playlist Subscribed
+
+Subscription Due Date
+
+Amount Paid
+
+Invoice (Download button)
+
+Status (Active / Expired)
+
+Add a search bar and filter dropdown (Active / Expired / All).
+
+Add pagination at the bottom (10 users per page).
+
+Playlist Details Modal
+
+When clicking on a user’s playlist name, open a modal showing:
+
+Playlist name
+
+List of videos included
+
+Subscription duration
+
+Progress bar (completion %)
+
+Invoice Download Button
+
+Each row should have a “Download” button styled with Tailwind, showing a download icon.
+
+Clicking it should trigger a sample file download (use dummy file link for now).
+
+Styling & Layout
+
+Use Tailwind CSS for layout and styling (clean, light theme).
+
+Sidebar and header should remain fixed; main content scrollable.
+
+Cards and modals should have shadows, rounded corners, and hover effects.
+
+Data Source
+
+Use a dummy JSON array for now, like:
+
+const users = [
+  {
+    id: 1,
+    name: "John Doe",
+    email: "john@example.com",
+    playlist: "React for Beginners",
+    dueDate: "2025-12-01",
+    amountPaid: "₹500",
+    invoiceUrl: "#",
+    status: "Active"
+  },
+  {
+    id: 2,
+    name: "Jane Smith",
+    email: "jane@example.com",
+    playlist: "Python Basics",
+    dueDate: "2025-11-15",
+    amountPaid: "₹750",
+    invoiceUrl: "#",
+    status: "Expired"
+  }
+];
+
+
+Display this mock data in the table.
+
+Component Structure
+
+/components/DashboardCards.jsx
+
+/components/UserTable.jsx
+
+/components/Sidebar.jsx
+
+/components/TopNavbar.jsx
+
+/components/PlaylistModal.jsx
+
+/pages/AdminDashboard.jsx (main page combining all)
+
+Export
+
+Export default AdminDashboard component.
+
+It should render all UI elements together in a responsive layout.
+
+Enhancement (Optional)
+
+Add dark mode toggle using Tailwind’s dark classes.
+
+Add a small chart widget (e.g., total revenue trend using Recharts or Chart.js).
+
+Use icons from Lucide or HeroIcons for better visuals.
+
+💡 Use realistic mock data and visually appealing Tailwind styles to make the dashboard feel production-ready.
