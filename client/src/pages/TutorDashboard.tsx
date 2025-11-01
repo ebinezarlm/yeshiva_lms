@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import AddVideoForm from "@/components/AddVideoForm";
 import AddDriveVideo from "@/components/AddDriveVideo";
 import VideoPlaylistManager from "@/components/VideoPlaylistManager";
+import UnifiedVideoManager from "@/components/UnifiedVideoManager";
 
 const VIDEOS_PER_PAGE = 12;
 
@@ -443,12 +444,17 @@ export default function TutorDashboard() {
           )}
         </div>
 
-        <Tabs defaultValue="youtube" className="w-full mb-8">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+        <Tabs defaultValue="unified" className="w-full mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="unified" data-testid="tab-unified">Unified Upload</TabsTrigger>
             <TabsTrigger value="youtube" data-testid="tab-youtube">YouTube / Vimeo</TabsTrigger>
             <TabsTrigger value="drive" data-testid="tab-google-drive">Google Drive</TabsTrigger>
             <TabsTrigger value="playlists" data-testid="tab-playlists">Playlists</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="unified">
+            <UnifiedVideoManager />
+          </TabsContent>
           
           <TabsContent value="youtube">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
