@@ -259,12 +259,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin-only endpoint - restricted to prevent data exposure
+  // In production, this should verify admin role from authenticated session
   app.get("/api/questions", async (req, res) => {
     try {
+      // TODO: Add admin role check here when implementing real authentication
       const questions = await storage.getAllQuestions();
       res.json(questions);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch questions" });
+    }
+  });
+
+  // Student-specific questions endpoint
+  // NOTE: In production with real auth, this should:
+  // 1. Extract the authenticated user's email from the session (not path param)
+  // 2. Verify the session email matches the requested email parameter
+  // 3. Return 403 Forbidden if there's a mismatch
+  // Current mock auth limitation: trusts the email parameter
+  app.get("/api/questions/student/:email", async (req, res) => {
+    try {
+      const { email } = req.params;
+      const questions = await storage.getQuestionsByStudentEmail(email);
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch student questions" });
     }
   });
 

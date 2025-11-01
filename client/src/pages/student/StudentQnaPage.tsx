@@ -1,51 +1,66 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MessageCircle, CheckCircle2, Clock, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import type { Question, Video, Playlist } from '@shared/schema';
+import { insertQuestionSchema, type Question, type Video } from '@shared/schema';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+
+const questionFormSchema = insertQuestionSchema;
+
+type QuestionFormData = z.infer<typeof questionFormSchema>;
 
 export default function StudentQnaPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [filter, setFilter] = useState<'all' | 'answered' | 'unanswered'>('all');
   const [showNewQuestion, setShowNewQuestion] = useState(false);
-  const [selectedVideoId, setSelectedVideoId] = useState('');
-  const [questionText, setQuestionText] = useState('');
 
-  const { data: allQuestions = [] } = useQuery<Question[]>({
-    queryKey: ['/api/questions'],
+  const { data: studentQuestions = [] } = useQuery<Question[]>({
+    queryKey: ['/api/questions/student', user?.email],
+    enabled: !!user?.email,
   });
 
   const { data: videos = [] } = useQuery<Video[]>({
     queryKey: ['/api/videos'],
   });
 
-  const { data: playlists = [] } = useQuery<Playlist[]>({
-    queryKey: ['/api/playlists'],
+  const form = useForm<QuestionFormData>({
+    resolver: zodResolver(questionFormSchema),
+    defaultValues: {
+      videoId: '',
+      studentEmail: user?.email || '',
+      studentName: user?.name || '',
+      text: '',
+    },
   });
 
   const createQuestionMutation = useMutation({
-    mutationFn: async (data: { videoId: string; text: string }) => {
+    mutationFn: async (data: QuestionFormData) => {
       const response = await apiRequest('POST', '/api/questions', data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/questions/student', user?.email] });
       setShowNewQuestion(false);
-      setSelectedVideoId('');
-      setQuestionText('');
+      form.reset({
+        videoId: '',
+        studentEmail: user?.email || '',
+        studentName: user?.name || '',
+        text: '',
+      });
       toast({
         title: 'Question posted',
         description: 'Your question has been submitted successfully',
@@ -65,22 +80,27 @@ export default function StudentQnaPage() {
     return video?.title || 'Unknown Video';
   };
 
-  const filteredQuestions = allQuestions.filter((q: Question) => {
+  const filteredQuestions = studentQuestions.filter((q: Question) => {
     if (filter === 'answered') return q.answer !== null;
     if (filter === 'unanswered') return q.answer === null;
     return true;
   });
 
-  const answeredCount = allQuestions.filter((q: Question) => q.answer !== null).length;
-  const unansweredCount = allQuestions.filter((q: Question) => q.answer === null).length;
+  const answeredCount = studentQuestions.filter((q: Question) => q.answer !== null).length;
+  const unansweredCount = studentQuestions.filter((q: Question) => q.answer === null).length;
 
-  const handlePostQuestion = () => {
-    if (!selectedVideoId || !questionText.trim()) return;
-
-    createQuestionMutation.mutate({
-      videoId: selectedVideoId,
-      text: questionText,
+  const handleOpenDialog = () => {
+    form.reset({
+      videoId: '',
+      studentEmail: user?.email || '',
+      studentName: user?.name || '',
+      text: '',
     });
+    setShowNewQuestion(true);
+  };
+
+  const handleSubmit = (data: QuestionFormData) => {
+    createQuestionMutation.mutate(data);
   };
 
   return (
@@ -92,7 +112,7 @@ export default function StudentQnaPage() {
             View your questions and get answers from tutors
           </p>
         </div>
-        <Button onClick={() => setShowNewQuestion(true)} data-testid="button-new-question">
+        <Button onClick={handleOpenDialog} data-testid="button-new-question">
           <Plus className="h-4 w-4 mr-2" />
           Ask Question
         </Button>
@@ -105,7 +125,7 @@ export default function StudentQnaPage() {
             <MessageCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{allQuestions.length}</div>
+            <div className="text-2xl font-bold">{studentQuestions.length}</div>
             <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
@@ -180,7 +200,7 @@ export default function StudentQnaPage() {
                   : `No ${filter} questions`}
               </p>
               {filter === 'all' && (
-                <Button onClick={() => setShowNewQuestion(true)}>
+                <Button onClick={handleOpenDialog}>
                   Ask Your First Question
                 </Button>
               )}
@@ -251,47 +271,70 @@ export default function StudentQnaPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Select Video</Label>
-              <Select value={selectedVideoId} onValueChange={setSelectedVideoId}>
-                <SelectTrigger data-testid="select-video">
-                  <SelectValue placeholder="Choose a video" />
-                </SelectTrigger>
-                <SelectContent>
-                  {videos.map((video: Video) => (
-                    <SelectItem key={video.id} value={video.id}>
-                      {video.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Your Question</Label>
-              <Textarea
-                placeholder="Type your question here..."
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                rows={5}
-                data-testid="textarea-question"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="videoId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select Video</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-video">
+                          <SelectValue placeholder="Choose a video" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {videos.map((video: Video) => (
+                          <SelectItem key={video.id} value={video.id}>
+                            {video.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewQuestion(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePostQuestion}
-              disabled={!selectedVideoId || !questionText.trim() || createQuestionMutation.isPending}
-              data-testid="button-submit-question"
-            >
-              {createQuestionMutation.isPending ? 'Posting...' : 'Post Question'}
-            </Button>
-          </DialogFooter>
+              <FormField
+                control={form.control}
+                name="text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your Question</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Type your question here..."
+                        rows={5}
+                        data-testid="textarea-question"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowNewQuestion(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createQuestionMutation.isPending}
+                  data-testid="button-submit-question"
+                >
+                  {createQuestionMutation.isPending ? 'Posting...' : 'Post Question'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

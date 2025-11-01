@@ -96,6 +96,8 @@ export type Comment = typeof comments.$inferSelect;
 export const questions = pgTable("questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   videoId: varchar("video_id").notNull(),
+  studentEmail: text("student_email").notNull(),
+  studentName: text("student_name").notNull(),
   text: text("text").notNull(),
   answer: text("answer"),
   answeredAt: timestamp("answered_at"),
@@ -108,8 +110,10 @@ export const insertQuestionSchema = createInsertSchema(questions).omit({
   answeredAt: true,
   answer: true,
 }).extend({
-  videoId: z.string(),
-  text: z.string().min(1, "Question text is required"),
+  videoId: z.string().min(1, "Video is required"),
+  studentEmail: z.string().email("Valid email required"),
+  studentName: z.string().min(1, "Student name is required"),
+  text: z.string().min(5, "Question must be at least 5 characters"),
 });
 
 export const answerQuestionSchema = z.object({

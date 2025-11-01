@@ -25,6 +25,7 @@ export interface IStorage {
   
   getAllQuestions(): Promise<Question[]>;
   getQuestionsByVideoId(videoId: string): Promise<Question[]>;
+  getQuestionsByStudentEmail(email: string): Promise<Question[]>;
   createQuestion(question: InsertQuestion): Promise<Question>;
   answerQuestion(id: string, answer: string): Promise<Question | undefined>;
   
@@ -142,6 +143,10 @@ export class DatabaseStorage implements IStorage {
 
   async getQuestionsByVideoId(videoId: string): Promise<Question[]> {
     return await db.select().from(questions).where(eq(questions.videoId, videoId));
+  }
+
+  async getQuestionsByStudentEmail(email: string): Promise<Question[]> {
+    return await db.select().from(questions).where(eq(questions.studentEmail, email));
   }
 
   async createQuestion(insertQuestion: InsertQuestion): Promise<Question> {
