@@ -1,0 +1,133 @@
+Build a complete React + Tailwind CSS single-page frontend application for an LMS with role-based access (Admin, Tutor, Student). Use React Router for routing, React Context (or Redux Toolkit) for simple auth/role state, and modular components. Provide a polished, production-like UI with mock JSON data and clear API call placeholders (Axios). Do not add backend logic — only frontend, but include comments where backend calls will be made. Make it responsive and accessible. Export default the main App component.
+
+🔧 Requirements & Behavior
+
+Role-based routing / Auth Simulation
+
+Provide a simple LoginPage with role select (Admin / Tutor / Student). On login, set a user object in Context: { id, name, email, role }.
+
+After login, redirect to /dashboard. The app should render the appropriate dashboard based on user.role.
+
+Protect routes: if not authenticated, redirect to /login.
+
+Main layout
+
+Shared layout: fixed Sidebar (collapsible), TopNavbar (search + notifications + profile dropdown), and a scrollable content region.
+
+Sidebar items adapt to role (Admin: Dashboard, Users, Playlists, Payments, Invoices, Analytics, Settings; Tutor: Dashboard, My Playlists, Upload Videos, Comments, Earnings, Profile; Student: Dashboard, My Playlists, Explore, Subscriptions, Q&A, Profile).
+
+Pages / Components list (suggested structure)
+
+/pages/LoginPage.jsx
+
+/pages/RoleRedirect.jsx (handles role-based redirect after login)
+
+/pages/Admin/*:
+
+AdminDashboard.jsx
+
+UserManagement.jsx
+
+SubscriptionSummary.jsx
+
+InvoiceManagement.jsx
+
+AdminAnalytics.jsx
+
+PlaylistManagementAdmin.jsx
+
+/pages/Tutor/*:
+
+TutorDashboard.jsx
+
+MyPlaylists.jsx
+
+UnifiedVideoManager.jsx (YouTube/Vimeo / Google Drive / File Upload + playlist)
+
+CommentsQuestionsTutor.jsx
+
+EarningsSummary.jsx
+
+/pages/Student/*:
+
+StudentDashboard.jsx
+
+MyPlaylistsStudent.jsx
+
+ExploreCourses.jsx
+
+MySubscriptions.jsx
+
+CommentsQnAStudent.jsx
+
+/components/*:
+
+Sidebar.jsx, TopNavbar.jsx, DashboardCards.jsx, UserTable.jsx, PlaylistCard.jsx, VideoCard.jsx, VideoPlayer.jsx, LikeButton.jsx, CommentList.jsx, PlaylistModal.jsx, InvoiceTable.jsx, AnalyticsCharts/*
+
+/context/AuthContext.jsx (simple auth + role)
+
+App.jsx (routes and layout)
+
+Core UX & Features to implement (frontend only)
+
+Admin: users table (name, email, playlist(s), due date, amount paid, invoice download), filters, search, status badges, playlist modal, invoice download (dummy link), summary cards, analytics charts (use Recharts with mock data).
+
+Tutor: create/edit playlists, upload videos (support link, Drive, and file upload), assign videos to playlists, list videos per playlist, delete/edit video, view & reply to student questions (reply modal), preview videos.
+
+Student: browse playlists, subscribe (mock), view videos, like, comment, ask question, bookmark (watch later), continue watching, progress bars per playlist.
+
+UnifiedVideoManager.jsx must include source selector (YouTube/Vimeo, Google Drive, Upload), preview, playlist assign/create flow, and submission with Axios placeholders:
+
+POST /api/playlists (create playlist)
+
+POST /api/videos (link-based)
+
+POST /api/videos/upload (multipart/form-data for file)
+
+Use Axios for API call placeholders and document where to replace with real endpoints.
+
+Mock Data
+
+Provide realistic mock arrays for users, playlists, videos, subscriptions, invoices, and analytics. Display those in each page by default.
+
+Use ISO dates and currency formatting for amounts.
+
+Styling & UI
+
+Use Tailwind utility classes for layout, spacing, rounded corners, shadow, hover states.
+
+Sidebar: supportive icons (HeroIcons or Lucide) and active state.
+
+TopNavbar: small search input, notification bell, profile avatar.
+
+Cards & Tables: responsive, with mobile-friendly stacking and horizontal scroll for tables.
+
+Modals and toasts: use small Tailwind-based components for confirmations and success messages.
+
+Accessibility & Responsiveness
+
+All interactive elements keyboard-focusable and have aria- labels where needed.
+
+Mobile-first responsive behavior: sidebar collapses to top hamburger on mobile.
+
+State Management
+
+Use React Context (AuthContext) for user state.
+
+Use useState / useEffect local state for pages; include notes where global state or server state would be used.
+
+Extras (Optional progressive enhancement)
+
+Dark mode toggle saved to localStorage.
+
+Upload progress indicator for file uploads using Axios onUploadProgress.
+
+Recharts charts in AdminAnalytics (Line, Bar, Pie, Area) with mock data.
+
+Project Output
+
+Provide full React code (JSX + Tailwind classes) with clear component exports.
+
+Include comments near every API call noting the expected server behavior and response shape.
+
+The App.jsx should show routes: /login, /dashboard, /admin/*, /tutor/*, /student/*, with a fallback 404 page.
