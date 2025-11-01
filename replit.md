@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-featured video learning platform providing distinct interfaces for educators and students. Tutors can upload, organize, and manage tutorial videos with full CRUD operations. Students can view videos, interact via likes and comments, and submit questions. The system supports various video sources including YouTube/Vimeo, Google Drive, and direct file uploads, with robust playlist management. It is a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for data storage.
+This is a full-featured video learning platform providing distinct interfaces for educators, students, and administrators. Tutors can upload, organize, and manage tutorial videos with full CRUD operations. Students can view videos, interact via likes and comments, and submit questions. Administrators can monitor platform usage, manage users and subscriptions through a comprehensive dashboard. The system supports various video sources including YouTube/Vimeo, Google Drive, and direct file uploads, with robust playlist management. It is a full-stack TypeScript application with a React frontend and Express backend, utilizing PostgreSQL for data storage.
 
 ## User Preferences
 
@@ -18,8 +18,9 @@ Preferred communication style: Simple, everyday language.
 - **Unified Video Manager**: Streamlined interface for adding videos from YouTube/Vimeo URLs, Google Drive links, and direct file uploads. Includes live preview, playlist integration (select existing or create new), and client-side validation.
 - **Playlist Management**: Tutors can create, manage, and assign videos to playlists. Playlists are displayed in an accordion-style interface.
 - **Video Playback**: Supports YouTube/Vimeo embeds and Google Drive embeds, with consistent interaction features (likes, comments, Q&A) across all video sources.
+- **Admin Dashboard**: Comprehensive management portal for monitoring users, subscriptions, revenue, and platform analytics with search, filtering, and detailed reporting.
 - **Form Handling**: Utilizes React Hook Form and Zod for robust form validation and state management, with shared schemas between client and server.
-- **Navigation**: Enhanced navbar with a dark theme, responsive design, and clear routing for Tutor Dashboard, Student Feed, and a placeholder Login Page. Default route redirects to Student Feed.
+- **Navigation**: Multi-role routing system with separate interfaces for Tutors (`/tutor`), Students (`/student`), and Admins (`/admin`). Main navigation hidden on admin routes for clean dashboard experience.
 
 ### Backend
 
@@ -66,3 +67,63 @@ Preferred communication style: Simple, everyday language.
 - PostCSS & Autoprefixer
 - `date-fns` (date formatting)
 - `file-type` (server-side file validation)
+
+---
+
+## Recent Feature: Admin Dashboard (November 1, 2025)
+
+**Admin Dashboard** - Comprehensive management interface for platform administrators accessible at `/admin`:
+
+### Key Features
+
+**Layout & Navigation**:
+- Clean dashboard layout with fixed sidebar and top navbar
+- Five navigation sections: Dashboard, Users, Subscriptions, Invoices, Settings
+- Responsive design with mobile sidebar overlay
+- Global navigation hidden on admin routes for distraction-free experience
+
+**Dashboard Overview** - Four key metric cards:
+1. **Total Users**: Count of all registered users
+2. **Active Subscriptions**: Number of currently active subscriptions
+3. **Total Revenue**: Cumulative earnings across all users (₹ currency)
+4. **Expiring Soon**: Active subscriptions expiring within 30 days
+
+**User Management Table**:
+- **Columns**: User Name, Email, Playlist Subscribed, Due Date, Amount Paid, Invoice, Status
+- **Search**: Real-time filtering by name, email, or playlist name
+- **Status Filter**: Filter users by Active, Expired, or All statuses
+- **Pagination**: 10 users per page with smart page navigation
+- **Clickable Playlists**: Opens detailed modal with playlist information
+- **Invoice Download**: Generate and download sample invoices per user
+- **Status Badges**: Color-coded badges (green for Active, red for Expired)
+
+**Playlist Details Modal**:
+- Student information and subscription status
+- Course progress bar with percentage completion
+- Subscription duration (days remaining or expired status)
+- Complete video list with titles and durations
+- Scrollable content area for playlists with many videos
+
+### Technical Implementation
+
+**Components**:
+- `AdminDashboard.tsx`: Main page with mock data (12 sample users)
+- `Sidebar.tsx`: Navigation sidebar with mobile responsiveness
+- `TopNavbar.tsx`: Header with search and profile dropdown
+- `DashboardCards.tsx`: Summary metrics widgets
+- `UserTable.tsx`: Searchable, filterable, paginated user table
+- `PlaylistModal.tsx`: Detailed playlist information modal
+
+**Features**:
+- Real-time metric calculations from user data
+- Combined search and filter capabilities
+- Responsive tables with mobile optimization
+- Professional UI using Shadcn components
+- Comprehensive accessibility with data-testid attributes
+
+**Future Enhancements** (Placeholder sections ready):
+- Subscriptions management panel
+- Invoices management system
+- Settings configuration
+- User role management
+- Analytics and reporting
