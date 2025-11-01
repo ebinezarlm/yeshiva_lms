@@ -23,12 +23,19 @@ export default function TutorDashboardPage() {
     queryKey: ['/api/subscriptions'],
   });
 
-  const tutorEmail = user?.email || '';
   const tutorPlaylists = playlists.filter(p => p.tutorName === user?.name);
-  const totalVideos = videos.length;
-  const totalLikes = videos.reduce((sum, v) => sum + (v.likes || 0), 0);
-  const unansweredQuestions = questions.filter(q => !q.answer).length;
-  const totalEarnings = subscriptions.reduce((sum, s) => sum + s.amountPaid, 0);
+  const tutorPlaylistIds = tutorPlaylists.map(p => p.id);
+  
+  const tutorVideos = videos.filter(v => v.playlistId && tutorPlaylistIds.includes(v.playlistId));
+  const tutorVideoIds = tutorVideos.map(v => v.id);
+  
+  const tutorQuestions = questions.filter(q => tutorVideoIds.includes(q.videoId));
+  const tutorSubscriptions = subscriptions.filter(s => tutorPlaylistIds.includes(s.playlistId));
+  
+  const totalVideos = tutorVideos.length;
+  const totalLikes = tutorVideos.reduce((sum, v) => sum + (v.likes || 0), 0);
+  const unansweredQuestions = tutorQuestions.filter(q => !q.answer).length;
+  const totalEarnings = tutorSubscriptions.reduce((sum, s) => sum + s.amountPaid, 0);
 
   const stats = [
     {
@@ -49,7 +56,7 @@ export default function TutorDashboardPage() {
     },
     {
       title: 'Comments & Q&A',
-      value: questions.length.toString(),
+      value: tutorQuestions.length.toString(),
       description: `${unansweredQuestions} pending replies`,
       icon: MessageSquare,
       iconBg: 'bg-purple-100 dark:bg-purple-900',
