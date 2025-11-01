@@ -29,7 +29,8 @@ Preferred communication style: Simple, everyday language.
 **ORM**: Drizzle ORM for PostgreSQL with `drizzle-zod` for type-safe validation.
 **Data Models**:
 - **Users**: `id`, `username`, `password`.
-- **Videos**: `id`, `title`, `description`, `videoUrl`, `category`, `likes`.
+- **Playlists**: `id`, `name` (unique), `description` (nullable), `createdAt`.
+- **Videos**: `id`, `title`, `description`, `videoUrl`, `category`, `likes`, `playlistId` (nullable FK to playlists).
 - **Comments**: `id`, `videoId` (FK), `username`, `text`, `createdAt`.
 - **Questions**: `id`, `videoId` (FK), `text`, `createdAt`, `answer` (nullable), `answeredAt` (nullable).
 **Validation Strategy**: Shared Zod schemas between client/server, URL validation, required field validation, and foreign key constraints.
@@ -66,7 +67,77 @@ The platform follows Material Design principles with Notion-inspired aesthetics.
 
 ---
 
-## Latest Updates (November 1, 2025 - Google Drive Video Integration)
+## Latest Updates (November 1, 2025 - Playlist Management Feature)
+
+**Playlist System**:
+- Added playlist/category system to organize videos into collections
+- Tutors can create playlists and assign videos to them
+- Videos can be added to playlists or left as standalone (orphan) videos
+- Playlist assignments are optional and backwards-compatible with existing videos
+
+**Database Schema Updates**:
+- **Playlists Table**: `id` (varchar UUID), `name` (text, unique), `description` (text, nullable), `createdAt` (timestamp)
+- **Videos Table**: Added `playlistId` (varchar, nullable, foreign key to playlists.id)
+- Nullable playlistId ensures backwards compatibility with existing videos
+
+**API Endpoints**:
+- **GET /api/playlists**: Fetches all playlists with nested videos array
+- **POST /api/playlists**: Creates new playlist (requires `name`, optional `description`)
+- **DELETE /api/playlists/:id**: Deletes a playlist by ID
+- **POST /api/videos**: Updated to accept optional `playlistId` field
+
+**VideoPlaylistManager Component** (`client/src/components/VideoPlaylistManager.tsx`):
+1. **Add Video to Playlist Form**:
+   - Video Title, Description, Video URL (Google Drive), Category
+   - Dropdown to select existing playlist OR create new playlist
+   - Toggle between "Select Playlist" and "Create New Playlist" modes
+   - Google Drive URL conversion (supports multiple formats)
+   - Form validation with Zod
+   - Success/error toast notifications
+
+2. **Playlist Display**:
+   - Accordion-style collapsible playlists
+   - Each playlist shows video count
+   - Videos displayed in responsive grid within playlist
+   - Each video card shows: iframe preview, title, description
+   - Delete button on each video card
+   - Empty state when no playlists exist
+
+3. **Features**:
+   - Create new playlist inline when adding video
+   - Add video to existing playlist from dropdown
+   - Delete videos from playlists
+   - Real-time cache invalidation (TanStack Query)
+   - Proper data-testid attributes for e2e testing
+
+**TutorDashboard Integration** (`client/src/pages/TutorDashboard.tsx`):
+- Added third tab "Playlists" to existing YouTube/Vimeo and Google Drive tabs
+- YouTube and Drive tabs maintain 2-column grid layout (form + video management)
+- Playlists tab displays VideoPlaylistManager in full-width layout
+- Extracted `renderVideoManagementPanel()` helper function to reuse video grid code
+- Responsive tab navigation with proper test IDs
+
+**Storage Layer Updates** (`server/storage.ts`):
+- Extended IStorage interface with playlist CRUD methods:
+  - `getAllPlaylists()`, `getPlaylist(id)`, `createPlaylist()`, `deletePlaylist(id)`
+  - `getVideosByPlaylistId(playlistId)`
+- DatabaseStorage implementation using Drizzle ORM queries
+
+**Testing**:
+- E2E tests verified playlist creation, video assignment, and deletion
+- Confirmed accordion interactions and responsive layouts
+- Validated Google Drive URL conversion in playlist context
+- All playlist API endpoints tested and working correctly
+
+**Architecture Benefits**:
+- Clean separation: playlists table independent from videos
+- Nullable foreign key allows gradual migration
+- No breaking changes to existing video functionality
+- Reusable helper functions reduce code duplication
+
+---
+
+## Earlier Updates (November 1, 2025 - Google Drive Video Integration)
 
 **AddDriveVideo Component**:
 - Created new component for adding videos from Google Drive (`client/src/components/AddDriveVideo.tsx`)
