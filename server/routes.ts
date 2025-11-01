@@ -3,6 +3,41 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadsDir = path.join(__dirname, "../public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only video files are allowed.'));
+    }
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/videos", async (req, res) => {
@@ -24,6 +59,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: "Invalid video data", details: error.errors });
       } else {
         res.status(500).json({ error: "Failed to create video" });
+      }
+    }
+  });
+
+  app.post("/api/videos/upload", upload.single('video'), async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No video file provided" });
+        return;
+      }
+
+      const { title, description, category, playlistId } = req.body;
+
+      if (!title || !description || !category) {
+        fs.unlinkSync(req.file.path);
+        res.status(400).json({ error: "Missing required fields: title, description, or category" });
+        return;
+      }
+
+      const videoUrl = `/uploads/${req.file.filename}`;
+
+      const validatedData = insertVideoSchema.parse({
+        title,
+        description,
+        videoUrl,
+        category,
+        playlistId: playlistId || null,
+      });
+
+      const video = await storage.createVideo(validatedData);
+      res.status(201).json(video);
+    } catch (error) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid video data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to upload video" });
       }
     }
   });

@@ -1,0 +1,124 @@
+Unified Video Upload Form (YouTube / Vimeo / Google Drive / File Upload + Playlist)
+
+Build a React + Tailwind CSS component called UnifiedVideoManager.jsx.
+
+🎯 Purpose:
+
+Create a single interface for tutors to add new videos to the LMS from multiple sources — YouTube, Vimeo, Google Drive, or direct upload — and organize them into playlists.
+
+✅ Functional Requirements:
+1. Form Sections:
+
+Video Source Selector (Tabs or Radio Buttons):
+Options:
+
+YouTube / Vimeo Link
+
+Google Drive Link
+
+Upload File
+
+Common Fields:
+
+Video Title (text input)
+
+Description (textarea)
+
+Playlist Selection:
+
+Dropdown to choose existing playlist (GET /api/playlists)
+
+“+ New Playlist” input (conditionally shown)
+
+2. Source-specific Inputs:
+
+If YouTube / Vimeo selected → show input field for video URL.
+
+If Google Drive selected → show input for Drive link and auto-convert it to embed format:
+
+Input: https://drive.google.com/file/d/FILE_ID/view?usp=sharing  
+Output: https://drive.google.com/uc?export=preview&id=FILE_ID
+
+
+If Upload File selected → show file input (<input type="file" accept="video/*" />)
+and preview the video before upload.
+
+3. Preview Section:
+
+After user provides a link or file, show a live preview:
+
+For YouTube/Vimeo: <iframe> embed
+
+For Drive: <iframe> with converted link
+
+For upload: <video controls /> preview
+
+4. Submit Logic:
+
+On Submit, based on selected source:
+
+If YouTube/Vimeo: send JSON payload via POST /api/videos
+
+{
+  "title": "Video Title",
+  "description": "Description",
+  "video_url": "https://youtube.com/... or https://vimeo.com/...",
+  "playlist_id": "playlist_id",
+  "source": "youtube/vimeo"
+}
+
+
+If Google Drive: send same payload, but with converted video_url and "source": "drive".
+
+If Upload File:
+Use FormData and POST to /api/videos/upload with fields:
+title, description, playlist_id, and the file.
+
+On success, display a success message (“Video added successfully!”), clear the form, and refresh the playlist list.
+
+5. Playlist Handling:
+
+Fetch playlists from /api/playlists on mount (GET).
+
+If user enters a new playlist name, POST to /api/playlists first, then use the returned playlist_id for video upload.
+
+🧰 Technical Implementation:
+
+Use React Hooks (useState, useEffect) for managing form and state.
+
+Use Axios for API calls.
+
+Handle conditional rendering of fields based on selected source type.
+
+Include upload progress bar for file uploads.
+
+Handle errors gracefully (invalid URL, empty fields, etc.).
+
+Export component as:
+
+export default UnifiedVideoManager;
+
+💅 UI / UX Guidelines:
+
+Use Tailwind to create a clean, card-style layout:
+bg-white shadow-lg rounded-2xl p-6 max-w-3xl mx-auto mt-10
+
+Use tabs or segmented buttons for source selection.
+
+Inputs: border border-gray-300 rounded-md p-2 w-full mb-4
+
+Button: bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md
+
+Responsive layout for mobile screens.
+
+Show progress bar and success messages in visually clear sections.
+
+
+
+Add drag-and-drop file upload area.
+
+Allow multiple uploads to a single playlist.
+
+Add video thumbnail extraction (if from YouTube/Vimeo).
+
+Include a small “Playlist Summary” below form showing existing videos per playlist.
