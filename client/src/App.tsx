@@ -14,6 +14,12 @@ import NotFound from '@/pages/not-found';
 
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
 import TutorDashboardPage from '@/pages/tutor/TutorDashboardPage';
+import TutorPlaylistsPage from '@/pages/tutor/TutorPlaylistsPage';
+import TutorUploadVideosPage from '@/pages/tutor/TutorUploadVideosPage';
+import TutorCommentsPage from '@/pages/tutor/TutorCommentsPage';
+import TutorEarningsPage from '@/pages/tutor/TutorEarningsPage';
+import TutorProfilePage from '@/pages/tutor/TutorProfilePage';
+
 import StudentDashboardPage from '@/pages/student/StudentDashboardPage';
 import StudentPlaylistsPage from '@/pages/student/StudentPlaylistsPage';
 import StudentPlaylistDetailPage from '@/pages/student/StudentPlaylistDetailPage';
@@ -134,40 +140,31 @@ function Router() {
 
         <Route path="/tutor/playlists">
           <ProtectedRoute allowedRoles={['tutor']}>
-            <TutorDashboard />
+            <TutorPlaylistsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/tutor/upload">
           <ProtectedRoute allowedRoles={['tutor']}>
-            <TutorDashboard />
+            <TutorUploadVideosPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/tutor/comments">
           <ProtectedRoute allowedRoles={['tutor']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Comments & Q&A</h2>
-              <p className="text-muted-foreground">Comments management interface coming soon</p>
-            </div>
+            <TutorCommentsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/tutor/earnings">
           <ProtectedRoute allowedRoles={['tutor']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Earnings</h2>
-              <p className="text-muted-foreground">Earnings dashboard coming soon</p>
-            </div>
+            <TutorEarningsPage />
           </ProtectedRoute>
         </Route>
 
         <Route path="/tutor/profile">
           <ProtectedRoute allowedRoles={['tutor']}>
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold mb-2">Profile</h2>
-              <p className="text-muted-foreground">Profile settings coming soon</p>
-            </div>
+            <TutorProfilePage />
           </ProtectedRoute>
         </Route>
 
