@@ -1,0 +1,160 @@
+Build a Tutor Dashboard frontend for a Learning Management System (LMS) using React + Tailwind CSS.
+The dashboard should match the visual and UX style of the Admin Dashboard (sidebar navigation, top bar, blue-gray theme, responsive design).
+
+🧩 Dashboard Structure
+
+Sidebar navigation should include:
+
+Dashboard (Overview)
+
+My Playlists
+
+Upload Videos
+
+Comments & Questions
+
+Earnings Summary
+
+Profile Settings
+
+📊 1. Dashboard (Overview Page)
+
+Show key tutor metrics using cards:
+
+Total Playlists
+
+Total Videos Uploaded
+
+Total Views / Likes
+
+Earnings (from subscriptions)
+
+Optional: small chart showing earnings or views over time (use dummy data)
+
+Include a greeting message like “Welcome back, [Tutor Name]”
+
+🎞️ 2. My Playlists Page
+
+Display all playlists created by the tutor in a card/grid layout
+
+Each card should show:
+
+Playlist Title
+
+Number of Videos
+
+Category
+
+Created Date
+
+Buttons on each card:
+
+“View Playlist” → opens modal or new page listing videos
+
+“Edit” → opens form modal to update title/description/category
+
+“Delete” → confirmation modal before deleting
+
+Add a top-right “+ Create New Playlist” button that opens a modal form with:
+
+Playlist Title
+
+Description
+
+Category (dropdown)
+
+Add videos (YouTube/Vimeo link, Google Drive link, or Upload file)
+
+Option to assign videos to playlist
+
+🎥 3. Upload Videos Page
+
+Single form with multiple input options:
+
+YouTube / Vimeo link field
+
+Google Drive link field
+
+File upload button (browse and upload)
+
+User can select one or multiple videos
+
+Dropdown to assign videos to an existing playlist or create a new one on the fly
+
+Input fields for:
+
+Video Title
+
+Description
+
+Tags (comma separated)
+
+Add “Upload” and “Reset” buttons
+
+Show a preview list of uploaded videos
+
+💬 4. Comments & Questions Page
+
+Display comments and questions received from students for tutor’s videos
+
+Use a table or card list:
+| Student Name | Video Title | Comment / Question | Date | Reply |
+
+Tutors can click “Reply” to open a reply modal, type an answer, and mark the comment as “Resolved”
+
+Include search and filter (e.g., Unanswered, Resolved)
+
+💰 5. Earnings Summary Page
+
+Display all subscription-based earnings
+
+Show metrics like:
+
+Total Earnings
+
+Earnings This Month
+
+Pending Payouts
+
+Include a table:
+| Playlist | Subscribers | Earnings | Last Payment Date | Status |
+
+Optional: chart showing monthly earning trend
+
+⚙️ 6. Profile Settings Page
+
+Editable form for tutor profile:
+
+Name, Email, Bio, Profile Picture Upload
+
+Bank / Payment Info (placeholder fields for integration later)
+
+Change Password
+
+Save and Cancel buttons
+
+Responsive, simple Tailwind form styling
+
+🎨 Styling & Layout
+
+Use same blue-gray + indigo color palette as admin dashboard
+
+Sidebar with icons and collapsible labels
+
+Top navigation bar with search, notifications, and profile dropdown
+
+Use Tailwind cards, modals, forms, grids, shadows, and rounded corners
+
+Fully responsive across desktop, tablet, and mobile
+
+Include hover and focus effects for better interactivity
+
+⚡ Optional Enhancements
+
+Add dark mode toggle (sync with Admin Dashboard theme)
+
+Add success/failure toasts after upload or reply actions
+
+Include animated transitions using Framer Motion
+
+Add loading skeletons for tables and forms
