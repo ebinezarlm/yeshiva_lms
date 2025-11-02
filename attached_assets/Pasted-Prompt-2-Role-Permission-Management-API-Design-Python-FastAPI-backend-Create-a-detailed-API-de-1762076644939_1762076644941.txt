@@ -1,0 +1,103 @@
+Prompt 2: Role & Permission Management API Design (Python FastAPI backend)
+
+Create a detailed API design (Markdown format) for the Role & Permission Management Module of a Learning Management System (LMS).
+
+Use FastAPI + SQLAlchemy, and assume JWT authentication is already implemented.
+
+🎯 Purpose:
+
+The Super Admin should be able to:
+
+Create and manage roles (Admin, Tutor, Student)
+
+Define and assign features (permissions) to each role
+
+Modify which features are enabled or disabled per role (via checkboxes in UI)
+
+Retrieve role-wise access data for frontend dashboards and sidebars
+
+🧩 Endpoints:
+
+1. GET /api/roles → List all roles
+2. POST /api/roles → Create a new role
+3. GET /api/roles/{id} → Fetch details of a role
+4. PUT /api/roles/{id} → Update role name or description
+5. DELETE /api/roles/{id} → Remove a role (Super Admin only)
+6. GET /api/permissions → List all available features/permissions in the system
+7. POST /api/roles/{id}/permissions → Assign permissions to a role
+8. GET /api/roles/{id}/permissions → Get assigned permissions for a role
+9. DELETE /api/roles/{id}/permissions/{permission_id} → Revoke a permission
+
+🧱 Database Models
+Role
+class Role(Base):
+    __tablename__ = "roles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+    description = Column(String)
+    created_at = Column(DateTime)
+
+Permission
+class Permission(Base):
+    __tablename__ = "permissions"
+    id = Column(Integer, primary_key=True)
+    feature_name = Column(String)
+    description = Column(String)
+
+RolePermission (Mapping Table)
+class RolePermission(Base):
+    __tablename__ = "role_permissions"
+    id = Column(Integer, primary_key=True)
+    role_id = Column(Integer, ForeignKey("roles.id"))
+    permission_id = Column(Integer, ForeignKey("permissions.id"))
+
+🧩 Sample Permission Features
+
+Admin: Dashboard, Users, Reports, Payments, Settings
+
+Tutor: Upload Videos, Manage Playlists, View Comments, Earnings
+
+Student: Explore, My Courses, Subscriptions, Profile
+
+📦 Example Payloads
+
+Create Role Request
+
+{
+  "name": "Tutor",
+  "description": "Can upload and manage learning content"
+}
+
+
+Assign Permissions Request
+
+{
+  "permissions": ["Upload Videos", "Manage Playlists", "Earnings"]
+}
+
+
+Response Example
+
+{
+  "role": "Tutor",
+  "assigned_permissions": ["Upload Videos", "Manage Playlists", "Earnings"]
+}
+
+🔒 Access Rules
+Endpoint	Super Admin	Admin	Tutor	Student
+GET /roles	✅	✅	❌	❌
+POST /roles	✅	❌	❌	❌
+PUT /roles/{id}	✅	❌	❌	❌
+DELETE /roles/{id}	✅	❌	❌	❌
+GET /permissions	✅	✅	✅	✅
+POST /roles/{id}/permissions	✅	❌	❌	❌
+DELETE /roles/{id}/permissions/{pid}	✅	❌	❌	❌
+💬 Notes
+
+Use role-based middleware to verify Super Admin access before modifying roles/permissions.
+
+Store permission definitions statically (seed data) or in DB table.
+
+Link role IDs with users from the users table.
+
+Add caching for permission lookups (e.g., Redis or in-memory cache).
