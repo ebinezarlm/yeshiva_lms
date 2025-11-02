@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema, signupSchema, loginSchema, updateUserRoleSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema, signupSchema, loginSchema, updateUserRoleSchema, insertRoleSchema, updateRoleSchema, assignPermissionsSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -329,6 +329,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete user error:", error);
       res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  app.get("/api/roles", authenticate, async (req, res) => {
+    try {
+      const roles = await storage.getAllRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Get roles error:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
+
+  app.post("/api/roles", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const validatedData = insertRoleSchema.parse(req.body);
+      
+      const existingRole = await storage.getRoleByName(validatedData.name);
+      if (existingRole) {
+        return res.status(409).json({
+          error: "Role already exists",
+          message: `A role with the name '${validatedData.name}' already exists`,
+        });
+      }
+
+      const role = await storage.createRole(validatedData);
+      res.status(201).json({
+        message: "Role created successfully",
+        role,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Create role error:", error);
+      res.status(500).json({ error: "Failed to create role" });
+    }
+  });
+
+  app.get("/api/roles/:id", authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const role = await storage.getRole(id);
+      
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      res.json(role);
+    } catch (error) {
+      console.error("Get role error:", error);
+      res.status(500).json({ error: "Failed to fetch role" });
+    }
+  });
+
+  app.put("/api/roles/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateRoleSchema.parse(req.body);
+
+      if (validatedData.name) {
+        const existingRole = await storage.getRoleByName(validatedData.name);
+        if (existingRole && existingRole.id !== id) {
+          return res.status(409).json({
+            error: "Role name conflict",
+            message: `Another role with the name '${validatedData.name}' already exists`,
+          });
+        }
+      }
+
+      const role = await storage.updateRole(id, validatedData);
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      res.json({
+        message: "Role updated successfully",
+        role,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Update role error:", error);
+      res.status(500).json({ error: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/roles/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      const defaultRoles = ["superadmin", "admin", "tutor", "student"];
+      if (defaultRoles.includes(role.name)) {
+        return res.status(403).json({
+          error: "Cannot delete default role",
+          message: "Default system roles cannot be deleted",
+        });
+      }
+
+      const deleted = await storage.deleteRole(id);
+      if (!deleted) {
+        return res.status(500).json({
+          error: "Failed to delete role",
+          message: "An error occurred while deleting the role",
+        });
+      }
+
+      res.json({ message: "Role deleted successfully" });
+    } catch (error) {
+      console.error("Delete role error:", error);
+      res.status(500).json({ error: "Failed to delete role" });
+    }
+  });
+
+  app.get("/api/permissions", authenticate, async (req, res) => {
+    try {
+      const permissions = await storage.getAllPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Get permissions error:", error);
+      res.status(500).json({ error: "Failed to fetch permissions" });
+    }
+  });
+
+  app.post("/api/roles/:id/permissions", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = assignPermissionsSchema.parse(req.body);
+
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      const assignedPermissions: string[] = [];
+      for (const permissionId of validatedData.permissionIds) {
+        const permission = await storage.getPermission(permissionId);
+        if (!permission) {
+          return res.status(404).json({
+            error: "Permission not found",
+            message: `Permission with ID '${permissionId}' does not exist`,
+          });
+        }
+
+        const existing = await storage.getRolePermission(id, permissionId);
+        if (!existing) {
+          await storage.assignPermissionToRole(id, permissionId);
+          assignedPermissions.push(permission.featureName);
+        }
+      }
+
+      res.status(201).json({
+        message: "Permissions assigned successfully",
+        role: role.name,
+        assigned_permissions: assignedPermissions,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Assign permissions error:", error);
+      res.status(500).json({ error: "Failed to assign permissions" });
+    }
+  });
+
+  app.get("/api/roles/:id/permissions", authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      const permissions = await storage.getRolePermissions(id);
+      res.json({
+        role: role.name,
+        permissions,
+      });
+    } catch (error) {
+      console.error("Get role permissions error:", error);
+      res.status(500).json({ error: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.delete("/api/roles/:id/permissions/:permissionId", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id, permissionId } = req.params;
+
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({
+          error: "Role not found",
+          message: "The requested role does not exist",
+        });
+      }
+
+      const permission = await storage.getPermission(permissionId);
+      if (!permission) {
+        return res.status(404).json({
+          error: "Permission not found",
+          message: "The requested permission does not exist",
+        });
+      }
+
+      const deleted = await storage.revokePermissionFromRole(id, permissionId);
+      if (!deleted) {
+        return res.status(404).json({
+          error: "Permission not assigned",
+          message: "This permission is not assigned to the role",
+        });
+      }
+
+      res.json({
+        message: "Permission revoked successfully",
+        role: role.name,
+        permission: permission.featureName,
+      });
+    } catch (error) {
+      console.error("Revoke permission error:", error);
+      res.status(500).json({ error: "Failed to revoke permission" });
     }
   });
 

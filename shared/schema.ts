@@ -14,17 +14,23 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
   id: true,
   createdAt: true,
 }).extend({
-  name: z.enum(["superadmin", "admin", "tutor", "student"]),
+  name: z.string().min(1, "Role name is required"),
+  description: z.string().optional(),
+});
+
+export const updateRoleSchema = z.object({
+  name: z.string().min(1, "Role name is required").optional(),
   description: z.string().optional(),
 });
 
 export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type UpdateRole = z.infer<typeof updateRoleSchema>;
 export type Role = typeof roles.$inferSelect;
 
 export const permissions = pgTable("permissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  featureName: text("feature_name").notNull(),
-  roleId: varchar("role_id").notNull(),
+  featureName: text("feature_name").notNull().unique(),
+  description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -33,11 +39,34 @@ export const insertPermissionSchema = createInsertSchema(permissions).omit({
   createdAt: true,
 }).extend({
   featureName: z.string().min(1, "Feature name is required"),
-  roleId: z.string().min(1, "Role ID is required"),
+  description: z.string().optional(),
 });
 
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type Permission = typeof permissions.$inferSelect;
+
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").notNull(),
+  permissionId: varchar("permission_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  roleId: z.string().min(1, "Role ID is required"),
+  permissionId: z.string().min(1, "Permission ID is required"),
+});
+
+export const assignPermissionsSchema = z.object({
+  permissionIds: z.array(z.string()).min(1, "At least one permission is required"),
+});
+
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type AssignPermissions = z.infer<typeof assignPermissionsSchema>;
+export type RolePermission = typeof rolePermissions.$inferSelect;
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

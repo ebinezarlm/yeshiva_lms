@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, type Role, type InsertRole, type Permission, type InsertPermission, users, videos, comments, questions, playlists, subscriptions, watchProgress, roles, permissions } from "@shared/schema";
+import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, type Role, type InsertRole, type Permission, type InsertPermission, type RolePermission, type InsertRolePermission, type UpdateRole, users, videos, comments, questions, playlists, subscriptions, watchProgress, roles, permissions, rolePermissions } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -8,9 +8,18 @@ export interface IStorage {
   getRoleByName(name: string): Promise<Role | undefined>;
   getAllRoles(): Promise<Role[]>;
   createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: string, role: UpdateRole): Promise<Role | undefined>;
+  deleteRole(id: string): Promise<boolean>;
   
-  getPermissionsByRoleId(roleId: string): Promise<Permission[]>;
+  getPermission(id: string): Promise<Permission | undefined>;
+  getPermissionByName(featureName: string): Promise<Permission | undefined>;
+  getAllPermissions(): Promise<Permission[]>;
   createPermission(permission: InsertPermission): Promise<Permission>;
+  
+  getRolePermission(roleId: string, permissionId: string): Promise<RolePermission | undefined>;
+  getRolePermissions(roleId: string): Promise<Permission[]>;
+  assignPermissionToRole(roleId: string, permissionId: string): Promise<RolePermission>;
+  revokePermissionFromRole(roleId: string, permissionId: string): Promise<boolean>;
   
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -75,8 +84,32 @@ export class DatabaseStorage implements IStorage {
     return role;
   }
 
-  async getPermissionsByRoleId(roleId: string): Promise<Permission[]> {
-    return await db.select().from(permissions).where(eq(permissions.roleId, roleId));
+  async updateRole(id: string, updateRole: UpdateRole): Promise<Role | undefined> {
+    const [role] = await db
+      .update(roles)
+      .set(updateRole)
+      .where(eq(roles.id, id))
+      .returning();
+    return role || undefined;
+  }
+
+  async deleteRole(id: string): Promise<boolean> {
+    const result = await db.delete(roles).where(eq(roles.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getPermission(id: string): Promise<Permission | undefined> {
+    const [permission] = await db.select().from(permissions).where(eq(permissions.id, id));
+    return permission || undefined;
+  }
+
+  async getPermissionByName(featureName: string): Promise<Permission | undefined> {
+    const [permission] = await db.select().from(permissions).where(eq(permissions.featureName, featureName));
+    return permission || undefined;
+  }
+
+  async getAllPermissions(): Promise<Permission[]> {
+    return await db.select().from(permissions);
   }
 
   async createPermission(insertPermission: InsertPermission): Promise<Permission> {
@@ -85,6 +118,53 @@ export class DatabaseStorage implements IStorage {
       .values(insertPermission)
       .returning();
     return permission;
+  }
+
+  async getRolePermission(roleId: string, permissionId: string): Promise<RolePermission | undefined> {
+    const [rolePermission] = await db
+      .select()
+      .from(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, roleId),
+          eq(rolePermissions.permissionId, permissionId)
+        )
+      );
+    return rolePermission || undefined;
+  }
+
+  async getRolePermissions(roleId: string): Promise<Permission[]> {
+    const result = await db
+      .select({
+        id: permissions.id,
+        featureName: permissions.featureName,
+        description: permissions.description,
+        createdAt: permissions.createdAt,
+      })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.roleId, roleId));
+    return result;
+  }
+
+  async assignPermissionToRole(roleId: string, permissionId: string): Promise<RolePermission> {
+    const [rolePermission] = await db
+      .insert(rolePermissions)
+      .values({ roleId, permissionId })
+      .returning();
+    return rolePermission;
+  }
+
+  async revokePermissionFromRole(roleId: string, permissionId: string): Promise<boolean> {
+    const result = await db
+      .delete(rolePermissions)
+      .where(
+        and(
+          eq(rolePermissions.roleId, roleId),
+          eq(rolePermissions.permissionId, permissionId)
+        )
+      );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getUser(id: string): Promise<User | undefined> {
