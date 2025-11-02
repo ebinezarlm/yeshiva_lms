@@ -5,18 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('student');
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already authenticated
@@ -48,16 +46,16 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      await login(email, password, role);
+      await login(email, password);
       toast({
         title: 'Success',
         description: 'Logged in successfully!',
       });
-      setLocation('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Invalid credentials. Please try again.';
       toast({
-        title: 'Error',
-        description: 'Invalid credentials. Please try again.',
+        title: 'Login Failed',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -74,7 +72,6 @@ export default function LoginPage() {
     };
     setEmail(emails[quickRole]);
     setPassword('password123');
-    setRole(quickRole);
   };
 
   return (
@@ -119,25 +116,10 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="role">Login As</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                <SelectTrigger id="role" data-testid="select-role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="student" data-testid="option-student">Student</SelectItem>
-                  <SelectItem value="tutor" data-testid="option-tutor">Tutor</SelectItem>
-                  <SelectItem value="admin" data-testid="option-admin">Admin</SelectItem>
-                  <SelectItem value="superadmin" data-testid="option-superadmin">Super Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || authLoading}
               data-testid="button-login"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
@@ -197,7 +179,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-4 text-xs text-center text-muted-foreground">
-            Demo credentials: Use any email with password "password123"
+            All demo accounts use password: <strong>password123</strong>
           </p>
         </CardContent>
       </Card>
