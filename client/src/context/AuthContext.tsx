@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import apiClient, { setTokens, getAccessToken as getToken } from '@/lib/axios';
 import axios from 'axios';
 
 export type UserRole = 'superadmin' | 'admin' | 'tutor' | 'student';
@@ -17,93 +18,39 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
-  getAccessToken: () => string | null;
-  refreshAccessToken: () => Promise<string | null>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getAccessToken = useCallback(() => accessToken, []);
-
-  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!refreshToken) {
-      return null;
-    }
-
-    try {
-      const response = await axios.post('/api/auth/refresh', {
-        refreshToken,
-      });
-
-      accessToken = response.data.accessToken;
-      refreshToken = response.data.refreshToken;
-      
-      return accessToken;
-    } catch (error) {
-      console.error('Failed to refresh token:', error);
-      accessToken = null;
-      refreshToken = null;
-      setUser(null);
-      return null;
-    }
-  }, []);
-
   const loadUserProfile = useCallback(async () => {
-    if (!accessToken) {
+    const token = getToken();
+    if (!token) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await axios.get('/api/users/profile', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
+      const response = await apiClient.get('/users/profile');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to load user profile:', error);
-      
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        try {
-          const retryResponse = await axios.get('/api/users/profile', {
-            headers: {
-              Authorization: `Bearer ${newToken}`,
-            },
-          });
-          setUser(retryResponse.data);
-        } catch (retryError) {
-          accessToken = null;
-          refreshToken = null;
-          setUser(null);
-        }
-      } else {
-        accessToken = null;
-        refreshToken = null;
-        setUser(null);
-      }
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
-  }, [refreshAccessToken]);
+  }, []);
 
   useEffect(() => {
     const storedAccessToken = localStorage.getItem('lms_access_token');
     const storedRefreshToken = localStorage.getItem('lms_refresh_token');
 
     if (storedAccessToken && storedRefreshToken) {
-      accessToken = storedAccessToken;
-      refreshToken = storedRefreshToken;
+      setTokens(storedAccessToken, storedRefreshToken);
       loadUserProfile();
     } else {
       setIsLoading(false);
@@ -120,9 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { user: userData, accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
 
-      accessToken = newAccessToken;
-      refreshToken = newRefreshToken;
-
+      setTokens(newAccessToken, newRefreshToken);
       localStorage.setItem('lms_access_token', newAccessToken);
       localStorage.setItem('lms_refresh_token', newRefreshToken);
 
@@ -137,18 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      if (accessToken) {
-        await axios.post('/api/auth/logout', {}, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+      const token = getToken();
+      if (token) {
+        await apiClient.post('/auth/logout');
       }
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      accessToken = null;
-      refreshToken = null;
+      setTokens(null, null);
       localStorage.removeItem('lms_access_token');
       localStorage.removeItem('lms_refresh_token');
       setUser(null);
@@ -160,8 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated: !!user,
-    getAccessToken,
-    refreshAccessToken,
     isLoading,
   };
 
