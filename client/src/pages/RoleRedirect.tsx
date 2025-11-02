@@ -9,6 +9,8 @@ export default function RoleRedirect() {
   }
 
   switch (user.role) {
+    case 'superadmin':
+      return <Redirect to="/superadmin/dashboard" />;
     case 'admin':
       return <Redirect to="/admin/dashboard" />;
     case 'tutor':

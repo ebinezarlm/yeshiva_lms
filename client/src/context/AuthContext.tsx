@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type UserRole = 'admin' | 'tutor' | 'student';
+export type UserRole = 'superadmin' | 'admin' | 'tutor' | 'student';
 
 export interface User {
   id: string;
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const mockUser: User = {
       id: `${role}-${Date.now()}`,
-      name: role === 'admin' ? 'Admin User' : role === 'tutor' ? 'Tutor User' : 'Student User',
+      name: role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin User' : role === 'tutor' ? 'Tutor User' : 'Student User',
       email,
       role,
     };

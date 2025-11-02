@@ -1,0 +1,112 @@
+Super Admin Access Panel, where the super user can:
+
+View all roles (Admin, Tutor, Student)
+
+See their available features (like Dashboard, Playlists, Payments, etc.)
+
+Assign or remove access by ticking checkboxes
+
+Store those access rights in state (mock backend can be added later)
+
+🧠 Here’s the enhanced Replit AI prompt (single-file, App.jsx version)
+
+Build a React + Tailwind CSS single-file app (App.jsx) for a Learning Management System (LMS) frontend with Super Admin access control and role-based dashboards (Admin, Tutor, Student).
+
+🚀 Core Requirements:
+
+Use React Router DOM for navigation.
+
+Use React Context API to manage authentication and role-based access.
+
+Include four roles:
+
+Super Admin — can assign permissions
+
+Admin
+
+Tutor
+
+Student
+
+Each role should have a different sidebar and dashboard view.
+
+Use Tailwind CSS for styling.
+
+Everything in a single App.jsx file (no imports outside except React, Router, Tailwind).
+
+🧩 Pages/Components (all inside App.jsx):
+
+AuthContext – manages login/logout & role.
+
+LoginPage – name, email, and dropdown for role (Super Admin, Admin, Tutor, Student).
+
+Sidebar – dynamic links based on role & permissions.
+
+TopBar – shows title, search, and logout.
+
+Dashboard – shows metric cards (mock data).
+
+SuperAdminPanel – main feature.
+
+ProtectedRoute – blocks unauthorized access.
+
+🧠 Super Admin Panel (key behavior):
+
+Route: /superadmin
+
+Shows three collapsible cards for Admin, Tutor, and Student.
+
+Each card lists features available to that role (e.g. Dashboard, Users, Playlist, Payments, Reports, Settings).
+
+Each feature has a checkbox → can select/deselect.
+
+Selected features update a permissions state object, example:
+
+{
+  admin: ["Dashboard", "Users", "Reports"],
+  tutor: ["Dashboard", "Upload Videos"],
+  student: ["Dashboard", "Explore"]
+}
+
+
+Store this object in React state (mock backend comment placeholder).
+
+Add a “Save Changes” button (console.log permissions on save).
+
+Use Tailwind for neat UI (cards, checkboxes, save button).
+
+Add success toast or alert for “Changes Saved”.
+
+💡 Dashboard Access:
+
+Only features selected in Super Admin panel should appear in that role’s sidebar and dashboard.
+
+Example: If Admin has only “Dashboard” and “Users”, then only those sidebar links appear.
+
+🎨 Styling:
+
+Tailwind only.
+
+Blue-gray & indigo theme.
+
+Rounded corners, shadows, hover transitions.
+
+Collapsible sidebar on mobile.
+
+⚙️ Output Expectation:
+
+A fully working single-file App.jsx that runs in Replit with:
+
+Login screen with 4 roles
+
+Super Admin panel with checkbox access control
+
+Role-based sidebar that reflects access rights
+
+Dashboard with mock cards
+
+Logout functionality
+
+Include inline comments where backend APIs can later be connected.
+
+Code should be about 300–350 lines, cleanly structured with comments.

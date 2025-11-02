@@ -23,7 +23,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const redirectPath =
-        user.role === 'admin'
+        user.role === 'superadmin'
+          ? '/superadmin/dashboard'
+          : user.role === 'admin'
           ? '/admin/dashboard'
           : user.role === 'tutor'
           ? '/tutor/dashboard'
@@ -64,7 +66,8 @@ export default function LoginPage() {
   };
 
   const handleQuickLogin = (quickRole: UserRole) => {
-    const emails = {
+    const emails: Record<UserRole, string> = {
+      superadmin: 'superadmin@lms.com',
       admin: 'admin@lms.com',
       tutor: 'tutor@lms.com',
       student: 'student@lms.com',
@@ -126,6 +129,7 @@ export default function LoginPage() {
                   <SelectItem value="student" data-testid="option-student">Student</SelectItem>
                   <SelectItem value="tutor" data-testid="option-tutor">Tutor</SelectItem>
                   <SelectItem value="admin" data-testid="option-admin">Admin</SelectItem>
+                  <SelectItem value="superadmin" data-testid="option-superadmin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -152,7 +156,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-2 gap-2 mt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -179,6 +183,15 @@ export default function LoginPage() {
                 data-testid="button-quick-admin"
               >
                 Admin
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickLogin('superadmin')}
+                data-testid="button-quick-superadmin"
+              >
+                Super Admin
               </Button>
             </div>
           </div>

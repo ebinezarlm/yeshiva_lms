@@ -4,6 +4,7 @@ import { queryClient } from './lib/queryClient';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { PermissionsProvider } from '@/context/PermissionsContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopNavbar } from '@/components/layout/TopNavbar';
@@ -12,6 +13,8 @@ import LoginPage from '@/pages/LoginPage';
 import RoleRedirect from '@/pages/RoleRedirect';
 import NotFound from '@/pages/not-found';
 
+import SuperAdminDashboardPage from '@/pages/superadmin/SuperAdminDashboardPage';
+import SuperAdminAccessControlPage from '@/pages/superadmin/SuperAdminAccessControlPage';
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
 import AdminUsersPage from '@/pages/admin/AdminUsersPage';
 import AdminPlaylistsPage from '@/pages/admin/AdminPlaylistsPage';
@@ -73,6 +76,18 @@ function Router() {
         <Route path="/dashboard">
           <ProtectedRoute>
             <RoleRedirect />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/superadmin/dashboard">
+          <ProtectedRoute allowedRoles={['superadmin']}>
+            <SuperAdminDashboardPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/superadmin/access-control">
+          <ProtectedRoute allowedRoles={['superadmin']}>
+            <SuperAdminAccessControlPage />
           </ProtectedRoute>
         </Route>
 
@@ -195,7 +210,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Router />
+          <PermissionsProvider>
+            <Router />
+          </PermissionsProvider>
         </AuthProvider>
         <Toaster />
       </TooltipProvider>

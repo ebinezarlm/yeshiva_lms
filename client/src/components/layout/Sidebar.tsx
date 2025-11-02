@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/context/AuthContext';
+import { usePermissions } from '@/context/PermissionsContext';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
@@ -18,7 +19,8 @@ import {
   BookOpen,
   HelpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -57,19 +59,33 @@ const studentMenuItems: SidebarItem[] = [
   { label: 'Profile', icon: UserCircle, path: '/student/profile' },
 ];
 
+const superadminMenuItems: SidebarItem[] = [
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/superadmin/dashboard' },
+  { label: 'Access Control', icon: Shield, path: '/superadmin/access-control' },
+  { label: 'All Users', icon: Users, path: '/superadmin/users' },
+  { label: 'System Logs', icon: FileText, path: '/superadmin/logs' },
+  { label: 'Settings', icon: Settings, path: '/superadmin/settings' },
+];
+
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!user) return null;
 
-  const menuItems =
-    user.role === 'admin'
-      ? adminMenuItems
-      : user.role === 'tutor'
-      ? tutorMenuItems
-      : studentMenuItems;
+  let menuItems: SidebarItem[];
+  
+  if (user.role === 'superadmin') {
+    menuItems = superadminMenuItems;
+  } else if (user.role === 'admin') {
+    menuItems = adminMenuItems.filter(item => hasPermission('admin', item.label));
+  } else if (user.role === 'tutor') {
+    menuItems = tutorMenuItems.filter(item => hasPermission('tutor', item.label));
+  } else {
+    menuItems = studentMenuItems.filter(item => hasPermission('student', item.label));
+  }
 
   return (
     <aside
