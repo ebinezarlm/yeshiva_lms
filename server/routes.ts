@@ -341,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/videos", async (req, res) => {
+  app.post("/api/videos", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const validatedData = insertVideoSchema.parse(req.body);
       const video = await storage.createVideo(validatedData);
@@ -355,7 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/videos/upload", upload.single('video'), async (req, res) => {
+  app.post("/api/videos/upload", authenticate, requireRole("tutor", "admin", "superadmin"), upload.single('video'), async (req, res) => {
     try {
       if (!req.file) {
         res.status(400).json({ error: "No video file provided" });
@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/videos/:id", async (req, res) => {
+  app.patch("/api/videos/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertVideoSchema.partial().parse(req.body);
@@ -439,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/videos/:id", async (req, res) => {
+  app.delete("/api/videos/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteVideo(id);
@@ -455,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/videos/:id/like", async (req, res) => {
+  app.post("/api/videos/:id/like", authenticate, async (req, res) => {
     try {
       const { id } = req.params;
       const video = await storage.likeVideo(id);
@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/videos/:id/comments", async (req, res) => {
+  app.post("/api/videos/:id/comments", authenticate, async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertCommentSchema.parse({
@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/playlists", async (req, res) => {
+  app.post("/api/playlists", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const validatedData = insertPlaylistSchema.parse(req.body);
       const playlist = await storage.createPlaylist(validatedData);
@@ -528,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/playlists/:id", async (req, res) => {
+  app.delete("/api/playlists/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deletePlaylist(id);
@@ -544,11 +544,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin-only endpoint - restricted to prevent data exposure
-  // In production, this should verify admin role from authenticated session
-  app.get("/api/questions", async (req, res) => {
+  app.get("/api/questions", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
-      // TODO: Add admin role check here when implementing real authentication
       const questions = await storage.getAllQuestions();
       res.json(questions);
     } catch (error) {
@@ -556,15 +553,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Student-specific questions endpoint
-  // NOTE: In production with real auth, this should:
-  // 1. Extract the authenticated user's email from the session (not path param)
-  // 2. Verify the session email matches the requested email parameter
-  // 3. Return 403 Forbidden if there's a mismatch
-  // Current mock auth limitation: trusts the email parameter
-  app.get("/api/questions/student/:email", async (req, res) => {
+  app.get("/api/questions/student/:email", authenticate, async (req, res) => {
     try {
       const { email } = req.params;
+      
+      if (req.user!.email !== email && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only view your own questions",
+        });
+      }
+      
       const questions = await storage.getQuestionsByStudentEmail(email);
       res.json(questions);
     } catch (error) {
@@ -572,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/questions", async (req, res) => {
+  app.post("/api/questions", authenticate, async (req, res) => {
     try {
       const validatedData = insertQuestionSchema.parse(req.body);
       const question = await storage.createQuestion(validatedData);
@@ -596,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/questions/:id/answer", async (req, res) => {
+  app.post("/api/questions/:id/answer", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = answerQuestionSchema.parse(req.body);
@@ -617,7 +616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/subscriptions", async (req, res) => {
+  app.get("/api/subscriptions", authenticate, requireRole("admin", "superadmin"), async (req, res) => {
     try {
       const subscriptions = await storage.getAllSubscriptions();
       res.json(subscriptions);
@@ -626,9 +625,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/subscriptions/student/:email", async (req, res) => {
+  app.get("/api/subscriptions/student/:email", authenticate, async (req, res) => {
     try {
       const { email } = req.params;
+      
+      if (req.user!.email !== email && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only view your own subscriptions",
+        });
+      }
+      
       const subscriptions = await storage.getSubscriptionsByEmail(email);
       res.json(subscriptions);
     } catch (error) {
@@ -636,7 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/subscriptions", async (req, res) => {
+  app.post("/api/subscriptions", authenticate, async (req, res) => {
     try {
       const validatedData = insertSubscriptionSchema.parse(req.body);
       const subscription = await storage.createSubscription(validatedData);
@@ -650,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/subscriptions/:id", async (req, res) => {
+  app.patch("/api/subscriptions/:id", authenticate, requireRole("admin", "superadmin"), async (req, res) => {
     try {
       const { id } = req.params;
       const subscription = await storage.updateSubscription(id, req.body);
@@ -666,9 +673,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/watch-progress/student/:email", async (req, res) => {
+  app.get("/api/watch-progress/student/:email", authenticate, async (req, res) => {
     try {
       const { email } = req.params;
+      
+      if (req.user!.email !== email && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only view your own watch progress",
+        });
+      }
+      
       const progress = await storage.getWatchProgressByEmail(email);
       res.json(progress);
     } catch (error) {
@@ -676,9 +691,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/watch-progress/student/:email/playlist/:playlistId", async (req, res) => {
+  app.get("/api/watch-progress/student/:email/playlist/:playlistId", authenticate, async (req, res) => {
     try {
       const { email, playlistId } = req.params;
+      
+      if (req.user!.email !== email && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only view your own watch progress",
+        });
+      }
+      
       const progress = await storage.getWatchProgressByPlaylist(email, playlistId);
       res.json(progress);
     } catch (error) {
@@ -686,7 +709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/watch-progress", async (req, res) => {
+  app.post("/api/watch-progress", authenticate, async (req, res) => {
     try {
       const validatedData = insertWatchProgressSchema.parse(req.body);
       const progress = await storage.upsertWatchProgress(validatedData);
