@@ -1,13 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema, insertUserSchema, loginSchema, updateUserRoleSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { fileTypeFromFile } from "file-type";
+import bcrypt from "bcryptjs";
+import { generateTokens, verifyRefreshToken, generateAccessToken } from "./auth/jwt";
+import { authenticate, requireRole, optionalAuth } from "./auth/middleware";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +50,279 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(409).json({
+          error: "Email already registered",
+          message: "An account with this email already exists",
+        });
+      }
+
+      const role = await storage.getRoleByName(req.body.roleName || "student");
+      if (!role) {
+        return res.status(400).json({
+          error: "Invalid role",
+          message: "The specified role does not exist",
+        });
+      }
+
+      const user = await storage.createUser({
+        ...validatedData,
+        roleId: role.id,
+      });
+
+      const tokens = generateTokens(user, role);
+
+      res.status(201).json({
+        message: "User registered successfully",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: role.name,
+          status: user.status,
+        },
+        ...tokens,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Failed to register user" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      
+      const user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        return res.status(401).json({
+          error: "Invalid credentials",
+          message: "Email or password is incorrect",
+        });
+      }
+
+      if (user.status !== "active") {
+        return res.status(403).json({
+          error: "Account inactive",
+          message: "Your account has been suspended or deactivated",
+        });
+      }
+
+      const isPasswordValid = await bcrypt.compare(validatedData.password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          error: "Invalid credentials",
+          message: "Email or password is incorrect",
+        });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      if (!role) {
+        return res.status(500).json({
+          error: "Server error",
+          message: "User role not found",
+        });
+      }
+
+      const tokens = generateTokens(user, role);
+
+      res.json({
+        message: "Login successful",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: role.name,
+          status: user.status,
+        },
+        ...tokens,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/auth/refresh", async (req, res) => {
+    try {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        return res.status(400).json({
+          error: "Missing refresh token",
+          message: "Refresh token is required",
+        });
+      }
+
+      const payload = verifyRefreshToken(refreshToken);
+      if (!payload) {
+        return res.status(401).json({
+          error: "Invalid token",
+          message: "Refresh token is invalid or expired",
+        });
+      }
+
+      const user = await storage.getUser(payload.userId);
+      if (!user || user.status !== "active") {
+        return res.status(401).json({
+          error: "Invalid user",
+          message: "User not found or inactive",
+        });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      if (!role) {
+        return res.status(500).json({
+          error: "Server error",
+          message: "User role not found",
+        });
+      }
+
+      const accessToken = generateAccessToken(user, role);
+
+      res.json({
+        accessToken,
+        message: "Token refreshed successfully",
+      });
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      res.status(500).json({ error: "Failed to refresh token" });
+    }
+  });
+
+  app.post("/api/auth/logout", authenticate, async (req, res) => {
+    res.json({ message: "Logged out successfully" });
+  });
+
+  app.get("/api/users/profile", authenticate, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.userId);
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "The requested user does not exist",
+        });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: role?.name,
+        status: user.status,
+        createdAt: user.createdAt,
+      });
+    } catch (error) {
+      console.error("Get profile error:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  app.get("/api/users", authenticate, requireRole("superadmin", "admin"), async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const roles = await storage.getAllRoles();
+      
+      const roleMap = Object.fromEntries(roles.map(r => [r.id, r.name]));
+      
+      const usersWithRoles = users.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: roleMap[user.roleId],
+        status: user.status,
+        createdAt: user.createdAt,
+      }));
+
+      res.json(usersWithRoles);
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.put("/api/users/:id/role", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateUserRoleSchema.parse(req.body);
+      
+      const user = await storage.updateUserRole(id, validatedData.roleId);
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "The requested user does not exist",
+        });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      
+      res.json({
+        message: "User role updated successfully",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: role?.name,
+          status: user.status,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Update role error:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  app.delete("/api/users/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (id === req.user!.userId) {
+        return res.status(400).json({
+          error: "Cannot delete own account",
+          message: "You cannot delete your own account",
+        });
+      }
+
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "The requested user does not exist",
+        });
+      }
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
   app.get("/api/videos", async (req, res) => {
     try {
       const videos = await storage.getAllVideos();
