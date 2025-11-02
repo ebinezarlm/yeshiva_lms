@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ const roleConfig = {
 };
 
 export default function SuperAdminAccessControlPage() {
-  const { permissions, updatePermissions } = usePermissions();
+  const { permissions, updateAllPermissions } = usePermissions();
   const { toast } = useToast();
   const [localPermissions, setLocalPermissions] = useState(permissions);
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
@@ -61,6 +61,11 @@ export default function SuperAdminAccessControlPage() {
     tutor: true,
     student: true,
   });
+
+  // Sync local permissions with context permissions when they change
+  useEffect(() => {
+    setLocalPermissions(permissions);
+  }, [permissions]);
 
   const handleFeatureToggle = (role: keyof typeof roleConfig, feature: string) => {
     setLocalPermissions((prev) => {
@@ -77,9 +82,7 @@ export default function SuperAdminAccessControlPage() {
   };
 
   const handleSaveChanges = () => {
-    Object.entries(localPermissions).forEach(([role, features]) => {
-      updatePermissions(role as keyof typeof roleConfig, features);
-    });
+    updateAllPermissions(localPermissions);
 
     toast({
       title: 'Changes Saved',

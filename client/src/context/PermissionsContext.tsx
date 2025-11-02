@@ -10,6 +10,7 @@ export interface RolePermissions {
 interface PermissionsContextType {
   permissions: RolePermissions;
   updatePermissions: (role: keyof RolePermissions, features: string[]) => void;
+  updateAllPermissions: (newPermissions: RolePermissions) => void;
   hasPermission: (role: UserRole, feature: string) => boolean;
 }
 
@@ -44,6 +45,11 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('lms_permissions', JSON.stringify(newPermissions));
   };
 
+  const updateAllPermissions = (newPermissions: RolePermissions) => {
+    setPermissions(newPermissions);
+    localStorage.setItem('lms_permissions', JSON.stringify(newPermissions));
+  };
+
   const hasPermission = (role: UserRole, feature: string): boolean => {
     if (role === 'superadmin') return true;
     return permissions[role as keyof RolePermissions]?.includes(feature) ?? false;
@@ -52,6 +58,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const value: PermissionsContextType = {
     permissions,
     updatePermissions,
+    updateAllPermissions,
     hasPermission,
   };
 
