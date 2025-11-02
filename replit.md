@@ -33,7 +33,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Schema (PostgreSQL with Drizzle ORM)
 
-- **Users**: `id`, `username`, `password`.
+- **Roles**: `id` (UUID), `name` (unique), `description`, `createdAt`.
+- **Users**: `id` (UUID), `name`, `email` (unique), `passwordHash`, `roleId` (FK to roles), `status`, `createdAt`, `updatedAt`.
 - **Playlists**: `id`, `name`, `description`, `createdAt`, `tutorName`, `category`, `thumbnail`, `isPublic`, `videoCount`, `viewCount`.
 - **Videos**: `id`, `title`, `description`, `videoUrl`, `category`, `likes`, `playlistId`.
 - **Comments**: `id`, `videoId`, `username`, `text`, `createdAt`.
@@ -65,7 +66,15 @@ Preferred communication style: Simple, everyday language.
   - **Access Control Panel**: Features dynamic permission management with collapsible role cards (Admin, Tutor, Student), checkbox-based feature toggles for each role, badge counts showing enabled/total features, and atomic save operations. Permissions are stored in localStorage and persist across sessions. Super Admin always has full access regardless of permission settings.
 - **PermissionsContext**: Centralized permission management system that controls which features are visible in each role's sidebar. Includes `hasPermission()` function for checking access, `updateAllPermissions()` for atomic updates, and automatic synchronization with localStorage.
 - **Dynamic Sidebar Filtering**: Admin, Tutor, and Student roles have their sidebar menu items filtered based on permissions set by Super Admin. Super Admin role is never filtered and always has access to all features.
-- **Authentication (Mock)**: Currently uses a mock system with demo credentials (student@lms.com, tutor@lms.com, admin@lms.com, superadmin@lms.com - all with password: password123) and client-side role-based routing via LocalStorage. This is a known limitation for a production environment.
+- **JWT Authentication System**: Production-ready authentication using JSON Web Tokens with bcryptjs password hashing:
+  - **Access Tokens**: Short-lived (15 minutes) for API authentication
+  - **Refresh Tokens**: Long-lived (7 days) for obtaining new access tokens
+  - **Axios Interceptor**: Automatically adds Authorization headers and handles token refresh on 401 errors
+  - **Secure Password Storage**: Uses bcrypt hashing with salt rounds for password security
+  - **Role-Based Access Control (RBAC)**: Four predefined roles (superadmin, admin, tutor, student) stored in database
+  - **Protected Routes**: Backend middleware validates JWT tokens and role permissions
+  - **Token Persistence**: Tokens stored in localStorage and automatically restored on page reload
+  - **Demo Credentials**: superadmin@lms.com, admin@lms.com, tutor@lms.com, student@lms.com (all use password: password123)
 - **Data Filtering**: Tutor and student dashboards implement data filtering based on `tutorName` or `studentEmail` to scope content appropriately.
 
 ## External Dependencies
@@ -91,6 +100,11 @@ Preferred communication style: Simple, everyday language.
 **Data Visualization**:
 - Recharts (for admin dashboard charts: LineChart, PieChart, BarChart)
 
+**Authentication & Security**:
+- `jsonwebtoken` (JWT generation and verification)
+- `bcryptjs` (password hashing)
+- Axios (HTTP client with interceptors)
+
 **Additional Integrations**:
 - Google Fonts (Inter, DM Sans, Architects Daughter, Fira Code, Geist Mono)
 - PostCSS & Autoprefixer
@@ -98,6 +112,27 @@ Preferred communication style: Simple, everyday language.
 - `file-type` (server-side file validation)
 
 ## Recent Changes
+
+### November 2, 2025 - JWT Authentication System Implementation
+- **Replaced mock authentication with production-ready JWT-based system**
+- Created comprehensive database schema with `roles` and updated `users` tables
+- Implemented JWT utilities (`server/auth/jwt.ts`) for token generation, verification, and refresh
+- Built authentication middleware (`server/auth/middleware.ts`) for protecting routes with role-based access control
+- Created complete authentication API:
+  - `POST /api/auth/signup` - User registration with automatic role assignment
+  - `POST /api/auth/login` - Login with JWT token generation
+  - `POST /api/auth/logout` - Token invalidation
+  - `POST /api/auth/refresh` - Refresh access token using refresh token
+  - `GET /api/users/profile` - Get authenticated user profile
+  - `GET /api/users` - List all users (admin/superadmin only)
+  - `POST /api/users/:userId/role` - Update user role (superadmin only)
+  - `DELETE /api/users/:userId` - Delete user (superadmin only)
+- Updated frontend `AuthContext` to use real API with token management and automatic refresh
+- Created axios interceptor (`client/src/lib/axios.ts`) for automatic token injection and refresh on 401 errors
+- Updated `LoginPage` to remove role selection (roles now determined by backend)
+- Database seeded with four default roles and test users
+- Comprehensive API documentation created in `API_DOCUMENTATION.md`
+- All authentication endpoints tested and verified with curl
 
 ### November 2, 2025 - Super Admin Access Control System
 - Added 'superadmin' role to authentication system with dedicated routing and login flow
