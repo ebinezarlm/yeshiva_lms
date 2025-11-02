@@ -1,0 +1,96 @@
+Step 1️⃣ — AUTHENTICATION & USER MANAGEMENT MODULE
+
+Here’s your first prompt to use (copy-paste into Replit AI or your IDE’s AI assistant):
+
+🧠 Prompt 1: Authentication & User Management API Design (Python FastAPI backend)
+
+Create a detailed API design (Markdown format) for the Authentication & User Management Module of an LMS backend.
+Use FastAPI + JWT Authentication + SQLAlchemy ORM.
+
+Include:
+
+Endpoint list (signup, login, logout, refresh, profile, role assignment)
+
+Request/response payloads (JSON)
+
+Access role rules (Super Admin, Admin, Tutor, Student)
+
+Error codes and validation rules
+
+Database models (User, Role, Permission)
+
+Include JWT-based middleware description
+
+Add inline notes where database queries or external integrations will happen
+
+Example successful and failed responses
+
+🎯 Endpoints to include:
+
+1. POST /api/auth/signup — Register new user
+2. POST /api/auth/login — Authenticate and return JWT
+3. POST /api/auth/logout — Invalidate token
+4. GET /api/auth/refresh — Refresh JWT token
+5. GET /api/users/profile — Fetch logged-in user info
+6. GET /api/users — List all users (Super Admin & Admin only)
+7. PUT /api/users/{id}/role — Assign or update a user’s role
+8. DELETE /api/users/{id} — Remove user (Super Admin only)
+
+💾 Database Models (show fields + types)
+
+User → id, name, email, password_hash, role_id, status, created_at
+
+Role → id, name (Admin, Tutor, Student, SuperAdmin)
+
+Permission → id, feature_name, role_id
+
+🧱 JWT Middleware Description
+
+Validate Authorization: Bearer <token> header
+
+Decode and verify token
+
+Inject user info into request.state.user
+
+Return 401 if invalid or expired
+
+📦 Example Payloads:
+
+Signup Request:
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "Secret123!",
+  "role": "Tutor"
+}
+
+
+Login Response:
+
+{
+  "access_token": "<JWT_TOKEN>",
+  "refresh_token": "<JWT_REFRESH>",
+  "role": "Tutor"
+}
+
+❌ Error Handling:
+
+400 → Invalid input
+
+401 → Invalid credentials
+
+403 → Access denied (role mismatch)
+
+409 → Email already registered
+
+🔐 Access Control Matrix:
+Endpoint	Super Admin	Admin	Tutor	Student
+/signup	✅	❌	❌	❌
+/login	✅	✅	✅	✅
+/users	✅	✅	❌	❌
+/users/{id}/role	✅	❌	❌	❌
+/logout	✅	✅	✅	✅
+/profile	✅	✅	✅	✅
+
+⚡ Output format: A clean Markdown document ready for developer handover.
