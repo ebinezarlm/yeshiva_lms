@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a comprehensive video learning platform featuring distinct interfaces for students, tutors, and administrators. It enables tutors to upload and manage video tutorials, students to consume content and interact, and administrators to oversee platform operations. The platform supports various video sources and includes robust playlist management. It's built as a full-stack TypeScript application with a React frontend, an Express backend, and PostgreSQL for data persistence, aiming to provide a rich educational experience.
+This project is a comprehensive video learning platform featuring distinct interfaces for students, tutors, administrators, and super administrators. It enables tutors to upload and manage video tutorials, students to consume content and interact, administrators to oversee platform operations, and super administrators to control role-based access permissions. The platform supports various video sources and includes robust playlist management. It's built as a full-stack TypeScript application with a React frontend, an Express backend, and PostgreSQL for data persistence, aiming to provide a rich educational experience.
 
 ## User Preferences
 
@@ -20,7 +20,8 @@ Preferred communication style: Simple, everyday language.
 - **Video Playback**: Supports embedded YouTube/Vimeo and Google Drive videos, offering consistent interaction features across all sources.
 - **Admin Dashboard**: A central portal for managing users, subscriptions, revenue, and platform analytics with search, filtering, and reporting capabilities.
 - **Form Handling**: Utilizes React Hook Form and Zod for robust client-side validation, sharing schemas with the backend for type safety.
-- **Navigation**: Features a multi-role routing system with dedicated interfaces for Tutors (`/tutor`), Students (`/student`), and Admins (`/admin`).
+- **Navigation**: Features a multi-role routing system with dedicated interfaces for Tutors (`/tutor`), Students (`/student`), Admins (`/admin`), and Super Admins (`/superadmin`).
+- **Super Admin Dashboard**: A control panel for managing role-based permissions with the Access Control Panel, allowing fine-grained control over which features each role can access.
 
 ### Backend
 
@@ -59,7 +60,12 @@ Preferred communication style: Simple, everyday language.
   - **Settings Page**: Platform configuration with three sections: Subscription Pricing (monthly/yearly prices, currency, tax), Admin Profile (name, email, password change), and Account Actions (logout).
 - **Student Dashboard**: Includes "My Playlists" with progress tracking, a "Playlist Detail" view with video player and interaction features, "Explore Courses" for browsing and subscribing, "My Subscriptions" for managing historical data, "Comments & Q&A" for interaction, and "Profile Settings."
 - **Tutor Dashboard**: Offers an overview with tutor-specific metrics, "My Playlists" for CRUD operations, "Upload Videos" using the unified manager, "Comments & Questions" for student interaction, "Earnings Summary," and "Profile Settings" including payment information.
-- **Authentication (Mock)**: Currently uses a mock system with demo credentials and client-side role-based routing via LocalStorage. This is a known limitation for a production environment.
+- **Super Admin Dashboard**: A comprehensive 2-page control panel:
+  - **Dashboard Overview**: Displays 5 stat cards (Total Users, Admins, Tutors, Students, System Status), Quick Actions card for accessing key features, and Platform Overview with system statistics.
+  - **Access Control Panel**: Features dynamic permission management with collapsible role cards (Admin, Tutor, Student), checkbox-based feature toggles for each role, badge counts showing enabled/total features, and atomic save operations. Permissions are stored in localStorage and persist across sessions. Super Admin always has full access regardless of permission settings.
+- **PermissionsContext**: Centralized permission management system that controls which features are visible in each role's sidebar. Includes `hasPermission()` function for checking access, `updateAllPermissions()` for atomic updates, and automatic synchronization with localStorage.
+- **Dynamic Sidebar Filtering**: Admin, Tutor, and Student roles have their sidebar menu items filtered based on permissions set by Super Admin. Super Admin role is never filtered and always has access to all features.
+- **Authentication (Mock)**: Currently uses a mock system with demo credentials (student@lms.com, tutor@lms.com, admin@lms.com, superadmin@lms.com - all with password: password123) and client-side role-based routing via LocalStorage. This is a known limitation for a production environment.
 - **Data Filtering**: Tutor and student dashboards implement data filtering based on `tutorName` or `studentEmail` to scope content appropriately.
 
 ## External Dependencies
@@ -91,9 +97,24 @@ Preferred communication style: Simple, everyday language.
 - `date-fns`
 - `file-type` (server-side file validation)
 
-## Recent Changes (November 1, 2025)
+## Recent Changes
 
-### Admin Dashboard Enhancement
+### November 2, 2025 - Super Admin Access Control System
+- Added 'superadmin' role to authentication system with dedicated routing and login flow
+- Created PermissionsContext for centralized role-based access control management
+- Built Super Admin Dashboard with system overview (5 stat cards, Quick Actions, Platform Overview)
+- Implemented Access Control Panel with dynamic permission management:
+  - Collapsible role cards for Admin, Tutor, and Student with checkbox controls
+  - Badge counts showing enabled/total features for each role
+  - Save Changes button with atomic `updateAllPermissions` function (fixes race conditions)
+  - Reset Changes button to restore default permissions
+  - Permissions persist in localStorage across sessions
+- Updated Sidebar component to dynamically filter menu items based on permissions
+- Super Admin always has full access to all features (not affected by permission restrictions)
+- Added useEffect synchronization to ensure UI reflects saved permissions after navigation
+- Comprehensive end-to-end testing verified all functionality including permission persistence, sidebar filtering, and cross-role behavior
+
+### November 1, 2025 - Admin Dashboard Enhancement
 - Enhanced Dashboard Overview with revenue growth line chart and subscription status pie chart using Recharts
 - Created comprehensive Users Page with search, filter, pagination, and detailed view modal
 - Built Playlists Page with card grid layout and full CRUD operations (create, edit, delete)
