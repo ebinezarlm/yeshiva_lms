@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema, insertUserSchema, loginSchema, updateUserRoleSchema } from "@shared/schema";
+import { insertVideoSchema, insertCommentSchema, insertQuestionSchema, answerQuestionSchema, insertPlaylistSchema, insertSubscriptionSchema, insertWatchProgressSchema, signupSchema, loginSchema, updateUserRoleSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -52,7 +52,7 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const validatedData = signupSchema.parse(req.body);
       
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
@@ -62,17 +62,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const role = await storage.getRoleByName(req.body.roleName || "student");
+      const role = await storage.getRoleByName("student");
       if (!role) {
-        return res.status(400).json({
-          error: "Invalid role",
-          message: "The specified role does not exist",
+        return res.status(500).json({
+          error: "Server error",
+          message: "Student role not found in database",
         });
       }
 
       const user = await storage.createUser({
-        ...validatedData,
+        name: validatedData.name,
+        email: validatedData.email,
+        password: validatedData.password,
         roleId: role.id,
+        status: "active",
       });
 
       const tokens = generateTokens(user, role);
@@ -265,15 +268,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = updateUserRoleSchema.parse(req.body);
       
-      const user = await storage.updateUserRole(id, validatedData.roleId);
+      const role = await storage.getRoleByName(validatedData.roleName);
+      if (!role) {
+        return res.status(400).json({
+          error: "Invalid role",
+          message: "The specified role does not exist",
+        });
+      }
+      
+      const user = await storage.updateUserRole(id, role.id);
       if (!user) {
         return res.status(404).json({
           error: "User not found",
           message: "The requested user does not exist",
         });
       }
-
-      const role = await storage.getRole(user.roleId);
       
       res.json({
         message: "User role updated successfully",
