@@ -646,6 +646,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/subscriptions", authenticate, async (req, res) => {
     try {
       const validatedData = insertSubscriptionSchema.parse(req.body);
+      
+      if (req.user!.email !== validatedData.studentEmail && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only create subscriptions for yourself",
+        });
+      }
+      
       const subscription = await storage.createSubscription(validatedData);
       res.status(201).json(subscription);
     } catch (error) {
@@ -712,6 +720,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/watch-progress", authenticate, async (req, res) => {
     try {
       const validatedData = insertWatchProgressSchema.parse(req.body);
+      
+      if (req.user!.email !== validatedData.studentEmail && !["admin", "superadmin"].includes(req.user!.roleName)) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only update your own watch progress",
+        });
+      }
+      
       const progress = await storage.upsertWatchProgress(validatedData);
       res.status(200).json(progress);
     } catch (error) {
