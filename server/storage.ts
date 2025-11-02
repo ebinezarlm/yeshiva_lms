@@ -1,11 +1,23 @@
-import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, users, videos, comments, questions, playlists, subscriptions, watchProgress } from "@shared/schema";
+import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, type Role, type InsertRole, type Permission, type InsertPermission, users, videos, comments, questions, playlists, subscriptions, watchProgress, roles, permissions } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, and } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
+  getRole(id: string): Promise<Role | undefined>;
+  getRoleByName(name: string): Promise<Role | undefined>;
+  getAllRoles(): Promise<Role[]>;
+  createRole(role: InsertRole): Promise<Role>;
+  
+  getPermissionsByRoleId(roleId: string): Promise<Permission[]>;
+  createPermission(permission: InsertPermission): Promise<Permission>;
+  
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserRole(id: string, roleId: string): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   
   getAllPlaylists(): Promise<Playlist[]>;
   getPlaylist(id: string): Promise<Playlist | undefined>;
@@ -41,22 +53,81 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getRole(id: string): Promise<Role | undefined> {
+    const [role] = await db.select().from(roles).where(eq(roles.id, id));
+    return role || undefined;
+  }
+
+  async getRoleByName(name: string): Promise<Role | undefined> {
+    const [role] = await db.select().from(roles).where(eq(roles.name, name));
+    return role || undefined;
+  }
+
+  async getAllRoles(): Promise<Role[]> {
+    return await db.select().from(roles);
+  }
+
+  async createRole(insertRole: InsertRole): Promise<Role> {
+    const [role] = await db
+      .insert(roles)
+      .values(insertRole)
+      .returning();
+    return role;
+  }
+
+  async getPermissionsByRoleId(roleId: string): Promise<Permission[]> {
+    return await db.select().from(permissions).where(eq(permissions.roleId, roleId));
+  }
+
+  async createPermission(insertPermission: InsertPermission): Promise<Permission> {
+    const [permission] = await db
+      .insert(permissions)
+      .values(insertPermission)
+      .returning();
+    return permission;
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
+    const passwordHash = await bcrypt.hash(insertUser.password, 10);
     const [user] = await db
       .insert(users)
-      .values(insertUser)
+      .values({
+        name: insertUser.name,
+        email: insertUser.email,
+        passwordHash,
+        roleId: insertUser.roleId,
+        status: insertUser.status,
+      })
       .returning();
     return user;
+  }
+
+  async updateUserRole(id: string, roleId: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ roleId, updatedAt: sql`now()` })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async getAllPlaylists(): Promise<Playlist[]> {

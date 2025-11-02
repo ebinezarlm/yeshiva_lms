@@ -3,19 +3,79 @@ import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core"
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.enum(["superadmin", "admin", "tutor", "student"]),
+  description: z.string().optional(),
+});
+
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Role = typeof roles.$inferSelect;
+
+export const permissions = pgTable("permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  featureName: text("feature_name").notNull(),
+  roleId: varchar("role_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPermissionSchema = createInsertSchema(permissions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  featureName: z.string().min(1, "Feature name is required"),
+  roleId: z.string().min(1, "Role ID is required"),
+});
+
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+export type Permission = typeof permissions.$inferSelect;
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  roleId: varchar("role_id").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  passwordHash: true,
+}).extend({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Must be a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  roleId: z.string().min(1, "Role is required"),
+  status: z.enum(["active", "inactive", "suspended"]).default("active"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Must be a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const updateUserRoleSchema = z.object({
+  roleId: z.string().min(1, "Role ID is required"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type LoginCredentials = z.infer<typeof loginSchema>;
+export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
 
 export const playlists = pgTable("playlists", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
