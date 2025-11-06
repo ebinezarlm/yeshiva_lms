@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Eye, Download, ChevronLeft, ChevronRight, UserPlus, X, Check, AlertCircle, Shield, GraduationCap, BookOpen } from 'lucide-react';
+import { Search, Eye, Download, ChevronLeft, ChevronRight, UserPlus, X, Trash2, Pencil, Check, AlertCircle, Shield, GraduationCap, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Subscription, Playlist } from '@shared/schema';
 
@@ -36,6 +36,7 @@ export default function AdminUsersPage() {
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'Admin' | 'Tutor' | 'Student'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -47,6 +48,7 @@ export default function AdminUsersPage() {
     mobile: '',
     email: '',
     role: 'Student' as 'Admin' | 'Tutor' | 'Student',
+    status: 'active' as 'active' | 'inactive',
     address: '',
     dateOfBirth: '',
     gender: '',
@@ -57,7 +59,8 @@ export default function AdminUsersPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
-
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  
   const { data: subscriptions = [] } = useQuery<Subscription[]>({
     queryKey: ['/api/subscriptions'],
   });
@@ -330,53 +333,77 @@ Thank you for your subscription!
     if (validateForm()) {
       setSubmitStatus('processing');
       
-      const tempPassword = generateTempPassword();
-      
-      const userData = {
-        ...formData,
-        tempPassword: tempPassword,
-        createdAt: new Date().toISOString()
-      };
-
-      console.log('User data to be submitted:', userData);
-
-      try {
-        await sendWelcomeEmail(userData, tempPassword);
-        
-        // Add the new user to the users list
-        const newUser: User = {
-          id: `${users.length + 1}`,
+      if (userToEdit) {
+        // Update existing user
+        const updatedUser: User = {
+          ...userToEdit,
           name: formData.name,
           email: formData.email,
           mobile: formData.mobile,
           role: formData.role,
-          status: 'active',
-          createdAt: new Date().toISOString()
+          status: formData.status,
         };
         
-        setUsers(prev => [...prev, newUser]);
+        setUsers(prev => prev.map(u => u.id === userToEdit.id ? updatedUser : u));
         
         setSubmitStatus('success');
         
         setTimeout(() => {
-          setFormData({
-            name: '',
-            mobile: '',
-            email: '',
-            role: 'Student',
-            address: '',
-            dateOfBirth: '',
-            gender: '',
-            qualification: '',
-            department: '',
-            selectedFeatures: roleConfigs['Student'].availableFeatures
-          });
           setSubmitStatus(null);
           setShowAddUserDialog(false);
+          setUserToEdit(null);
         }, 2000);
-      } catch (error) {
-        console.error('Error sending email:', error);
-        setSubmitStatus('error');
+      } else {
+        // Add new user
+        const tempPassword = generateTempPassword();
+        
+        const userData = {
+          ...formData,
+          tempPassword: tempPassword,
+          createdAt: new Date().toISOString()
+        };
+  
+        console.log('User data to be submitted:', userData);
+  
+        try {
+          await sendWelcomeEmail(userData, tempPassword);
+          
+          // Add the new user to the users list
+          const newUser: User = {
+            id: `${users.length + 1}`,
+            name: formData.name,
+            email: formData.email,
+            mobile: formData.mobile,
+            role: formData.role,
+            status: 'active',
+            createdAt: new Date().toISOString()
+          };
+          
+          setUsers(prev => [...prev, newUser]);
+          
+          setSubmitStatus('success');
+          
+          setTimeout(() => {
+            setFormData({
+              name: '',
+              mobile: '',
+              email: '',
+              role: 'Student',
+              status: 'active',
+              address: '',
+              dateOfBirth: '',
+              gender: '',
+              qualification: '',
+              department: '',
+              selectedFeatures: roleConfigs['Student'].availableFeatures
+            });
+            setSubmitStatus(null);
+            setShowAddUserDialog(false);
+          }, 2000);
+        } catch (error) {
+          console.error('Error sending email:', error);
+          setSubmitStatus('error');
+        }
       }
     } else {
       setSubmitStatus('error');
@@ -389,6 +416,7 @@ Thank you for your subscription!
       mobile: '',
       email: '',
       role: 'Student',
+      status: 'active',
       address: '',
       dateOfBirth: '',
       gender: '',
@@ -401,6 +429,16 @@ Thank you for your subscription!
   };
 
   const handleDeleteUser = (user: User) => {
+    // Check if user is active
+    if (user.status === 'active') {
+      // Show error message instead of opening delete confirmation
+      setDeleteError('Cannot delete active users. Please deactivate the user first.');
+      // Clear the error message after 3 seconds
+      setTimeout(() => {
+        setDeleteError(null);
+      }, 3000);
+      return;
+    }
     setUserToDelete(user);
   };
 
@@ -415,6 +453,25 @@ Thank you for your subscription!
     setSelectedUser(user);
   };
 
+  const handleEditUser = (user: User) => {
+    setUserToEdit(user);
+    // Pre-fill the form with user data
+    setFormData({
+      name: user.name,
+      mobile: user.mobile,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      address: '',
+      dateOfBirth: '',
+      gender: '',
+      qualification: '',
+      department: '',
+      selectedFeatures: [] // This would need to be populated from user data if available
+    });
+    setShowAddUserDialog(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -423,6 +480,16 @@ Thank you for your subscription!
           View and manage all registered users and their subscriptions
         </p>
       </div>
+
+      {/* Error message for active user deletion attempt */}
+      {deleteError && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="text-red-500" size={20} />
+            <p className="text-red-700 font-medium">{deleteError}</p>
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -516,20 +583,27 @@ Thank you for your subscription!
                               size="sm"
                               onClick={() => viewUserDetails(user)}
                               data-testid={`button-view-${user.id}`}
-                              className="h-8 px-2 text-xs md:h-9 md:px-4 md:text-sm"
+                              className="h-8 w-8 p-0 md:h-9 md:w-9"
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              <span className="hidden sm:inline">View</span>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditUser(user)}
+                              data-testid={`button-edit-${user.id}`}
+                              className="h-8 w-8 p-0 md:h-9 md:w-9"
+                            >
+                              <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteUser(user)}
                               data-testid={`button-delete-${user.id}`}
-                              className="h-8 px-2 text-xs md:h-9 md:px-4 md:text-sm"
+                              className="h-8 w-8 p-0 md:h-9 md:w-9"
                             >
-                              <X className="h-3 w-3 mr-1" />
-                              <span className="hidden sm:inline">Delete</span>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -575,11 +649,18 @@ Thank you for your subscription!
       </Card>
 
       {/* Add User Dialog */}
-      <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+      <Dialog open={showAddUserDialog} onOpenChange={(open) => {
+        setShowAddUserDialog(open);
+        if (!open) {
+          // Reset the form when closing the dialog
+          setUserToEdit(null);
+          handleReset();
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-            <DialogDescription>Create a new user account for the LMS platform</DialogDescription>
+            <DialogTitle>{userToEdit ? 'Edit User' : 'Add New User'}</DialogTitle>
+            <DialogDescription>{userToEdit ? 'Update user account information' : 'Create a new user account for the LMS platform'}</DialogDescription>
           </DialogHeader>
           
           {submitStatus === 'processing' && (
@@ -695,6 +776,29 @@ Thank you for your subscription!
                     })}
                   </select>
                 </div>
+                
+                {/* Status field - only shown when editing */}
+                {userToEdit && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive (Terms Violation)</option>
+                    </select>
+                    {formData.status === 'inactive' && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        User will be restricted from accessing the application due to violation of terms and conditions.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -848,7 +952,7 @@ Thank you for your subscription!
                 onClick={handleSubmit}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                Add User
+                {userToEdit ? 'Update User' : 'Add User'}
               </Button>
             </div>
           </div>
