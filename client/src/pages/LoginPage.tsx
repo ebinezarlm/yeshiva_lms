@@ -74,6 +74,12 @@ export default function LoginPage() {
     setPassword('password123');
   };
 
+  // Bypass authentication for development
+  const handleBypassAuth = () => {
+    localStorage.setItem('bypass_auth', 'true');
+    setLocation('/admin/dashboard');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md">
@@ -125,6 +131,20 @@ export default function LoginPage() {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
+
+          {/* Bypass authentication button for development */}
+          {import.meta.env.MODE === 'development' && (
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={handleBypassAuth}
+              >
+                Bypass Authentication (Development Only)
+              </Button>
+            </div>
+          )}
 
           <div className="mt-6">
             <div className="relative">

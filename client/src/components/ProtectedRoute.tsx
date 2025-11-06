@@ -11,6 +11,14 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, isAuthenticated } = useAuth();
 
+  // For development, bypass authentication if bypass_auth is set
+  if (import.meta.env.MODE === 'development') {
+    const bypassAuth = localStorage.getItem('bypass_auth') === 'true';
+    if (bypassAuth) {
+      return <>{children}</>;
+    }
+  }
+
   if (!isAuthenticated) {
     return <Redirect to="/login" />;
   }

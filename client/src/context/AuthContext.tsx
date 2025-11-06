@@ -49,6 +49,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedAccessToken = localStorage.getItem('lms_access_token');
     const storedRefreshToken = localStorage.getItem('lms_refresh_token');
 
+    // For development, bypass authentication and use a mock user
+    if (import.meta.env.MODE === 'development') {
+      // Check if we want to bypass auth (e.g., for demo purposes)
+      const bypassAuth = localStorage.getItem('bypass_auth') === 'true';
+      if (bypassAuth) {
+        setUser({
+          id: 'mock-user-id',
+          name: 'Demo User',
+          email: 'demo@example.com',
+          role: 'admin', // Default to admin role for demo
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     if (storedAccessToken && storedRefreshToken) {
       setTokens(storedAccessToken, storedRefreshToken);
       loadUserProfile();
@@ -58,6 +76,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUserProfile]);
 
   const login = async (email: string, password: string) => {
+    // For development, bypass actual login and use a mock user
+    if (import.meta.env.MODE === 'development') {
+      setIsLoading(true);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Create mock user based on email
+      let role: UserRole = 'student';
+      if (email.includes('admin')) role = 'admin';
+      if (email.includes('superadmin')) role = 'superadmin';
+      if (email.includes('tutor')) role = 'tutor';
+      
+      const mockUser: User = {
+        id: 'mock-user-id',
+        name: email.split('@')[0],
+        email,
+        role,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Set mock tokens
+      const mockAccessToken = 'mock-access-token';
+      const mockRefreshToken = 'mock-refresh-token';
+      
+      setTokens(mockAccessToken, mockRefreshToken);
+      localStorage.setItem('lms_access_token', mockAccessToken);
+      localStorage.setItem('lms_refresh_token', mockRefreshToken);
+      
+      setUser(mockUser);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Production login flow
     try {
       setIsLoading(true);
       const response = await axios.post('/api/auth/login', {
