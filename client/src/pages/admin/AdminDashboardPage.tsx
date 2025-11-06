@@ -103,15 +103,15 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">
+        <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-page-title">
           Admin Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm md:text-base">
           System-wide overview and management
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -123,7 +123,7 @@ export default function AdminDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                <div className="text-xl md:text-2xl font-bold" data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
                   {stat.value}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -135,12 +135,12 @@ export default function AdminDashboardPage() {
         })}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid grid-cols-2 gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
@@ -155,8 +155,8 @@ export default function AdminDashboardPage() {
                       <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="font-medium">{action.title}</div>
-                      <div className="text-sm text-muted-foreground">{action.description}</div>
+                      <div className="font-medium text-sm">{action.title}</div>
+                      <div className="text-xs text-muted-foreground">{action.description}</div>
                     </div>
                   </div>
                 </div>
@@ -192,7 +192,7 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>

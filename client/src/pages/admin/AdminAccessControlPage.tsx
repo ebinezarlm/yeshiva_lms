@@ -151,7 +151,7 @@ export default function AdminAccessControlPage() {
 
                 <CollapsibleContent>
                   <CardContent>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {config.availableFeatures.map((feature) => {
                         const isChecked = localPermissions[role]?.includes(feature) || false;
                         return (
@@ -178,6 +178,7 @@ export default function AdminAccessControlPage() {
                     </div>
                   </CardContent>
                 </CollapsibleContent>
+
               </Collapsible>
             </Card>
           );

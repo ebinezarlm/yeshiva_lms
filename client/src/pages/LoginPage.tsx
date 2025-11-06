@@ -160,13 +160,14 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickLogin('student')}
                 data-testid="button-quick-student"
+                className="w-full"
               >
                 Student
               </Button>
@@ -176,6 +177,7 @@ export default function LoginPage() {
                 size="sm"
                 onClick={() => handleQuickLogin('tutor')}
                 data-testid="button-quick-tutor"
+                className="w-full"
               >
                 Tutor
               </Button>
@@ -185,6 +187,7 @@ export default function LoginPage() {
                 size="sm"
                 onClick={() => handleQuickLogin('admin')}
                 data-testid="button-quick-admin"
+                className="w-full"
               >
                 Admin
               </Button>

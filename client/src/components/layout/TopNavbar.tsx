@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, Search, LogOut, UserCircle, Moon, Sun } from 'lucide-react';
+import { Bell, Search, LogOut, UserCircle, Moon, Sun, Menu } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 
@@ -56,16 +56,29 @@ export function TopNavbar() {
       data-testid="topnav-header"
     >
       <div className="flex items-center flex-1 max-w-md gap-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search courses, videos..."
-          className="max-w-md"
-          data-testid="input-search-global"
-        />
+        <div className="md:hidden">
+          <Button variant="ghost" size="icon">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="hidden md:flex items-center gap-2 flex-1">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search courses, videos..."
+            className="max-w-md"
+            data-testid="input-search-global"
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          <Button variant="ghost" size="icon">
+            <Search className="h-5 w-5" />
+          </Button>
+        </div>
+        
         <Button
           variant="ghost"
           size="icon"
