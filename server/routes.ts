@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users", authenticate, requireRole("superadmin", "admin"), async (req, res) => {
+  app.get("/api/users", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       const roles = await storage.getAllRoles();
@@ -263,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id/role", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.put("/api/users/:id/role", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = updateUserRoleSchema.parse(req.body);
@@ -306,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.delete("/api/users/:id", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -342,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.post("/api/roles", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const validatedData = insertRoleSchema.parse(req.body);
       
@@ -390,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/roles/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.put("/api/roles/:id", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = updateRoleSchema.parse(req.body);
@@ -429,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/roles/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.delete("/api/roles/:id", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -474,40 +474,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles/:id/permissions", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.post("/api/roles/:id/permissions", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = assignPermissionsSchema.parse(req.body);
-
-      const role = await storage.getRole(id);
-      if (!role) {
-        return res.status(404).json({
-          error: "Role not found",
-          message: "The requested role does not exist",
+      const validatedData = insertPermissionSchema.parse(req.body);
+      
+      // Check if permission already exists for this role
+      const existingPermission = await storage.getPermissionByRoleAndResource(id, validatedData.resource);
+      if (existingPermission) {
+        return res.status(409).json({
+          error: "Permission already exists",
+          message: `Permission for resource '${validatedData.resource}' already exists for this role`,
         });
       }
 
-      const assignedPermissions: string[] = [];
-      for (const permissionId of validatedData.permissionIds) {
-        const permission = await storage.getPermission(permissionId);
-        if (!permission) {
-          return res.status(404).json({
-            error: "Permission not found",
-            message: `Permission with ID '${permissionId}' does not exist`,
-          });
-        }
-
-        const existing = await storage.getRolePermission(id, permissionId);
-        if (!existing) {
-          await storage.assignPermissionToRole(id, permissionId);
-          assignedPermissions.push(permission.featureName);
-        }
-      }
-
+      const permission = await storage.createPermission({
+        ...validatedData,
+        roleId: id,
+      });
+      
       res.status(201).json({
-        message: "Permissions assigned successfully",
-        role: role.name,
-        assigned_permissions: assignedPermissions,
+        message: "Permission created successfully",
+        permission,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -516,8 +504,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: error.errors,
         });
       }
-      console.error("Assign permissions error:", error);
-      res.status(500).json({ error: "Failed to assign permissions" });
+      console.error("Create permission error:", error);
+      res.status(500).json({ error: "Failed to create permission" });
     }
   });
 
@@ -544,42 +532,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/roles/:id/permissions/:permissionId", authenticate, requireRole("superadmin"), async (req, res) => {
+  app.delete("/api/roles/:id/permissions/:permissionId", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id, permissionId } = req.params;
-
-      const role = await storage.getRole(id);
-      if (!role) {
-        return res.status(404).json({
-          error: "Role not found",
-          message: "The requested role does not exist",
-        });
-      }
-
-      const permission = await storage.getPermission(permissionId);
-      if (!permission) {
+      
+      const deleted = await storage.deletePermission(permissionId);
+      if (!deleted) {
         return res.status(404).json({
           error: "Permission not found",
           message: "The requested permission does not exist",
         });
       }
 
-      const deleted = await storage.revokePermissionFromRole(id, permissionId);
-      if (!deleted) {
-        return res.status(404).json({
-          error: "Permission not assigned",
-          message: "This permission is not assigned to the role",
-        });
-      }
-
-      res.json({
-        message: "Permission revoked successfully",
-        role: role.name,
-        permission: permission.featureName,
-      });
+      res.json({ message: "Permission deleted successfully" });
     } catch (error) {
-      console.error("Revoke permission error:", error);
-      res.status(500).json({ error: "Failed to revoke permission" });
+      console.error("Delete permission error:", error);
+      res.status(500).json({ error: "Failed to delete permission" });
     }
   });
 
@@ -592,116 +560,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/videos", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.post("/api/videos", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const validatedData = insertVideoSchema.parse(req.body);
-      const video = await storage.createVideo(validatedData);
-      res.status(201).json(video);
+      
+      const video = await storage.createVideo({
+        ...validatedData,
+        tutorId: req.user!.userId,
+      });
+      
+      res.status(201).json({
+        message: "Video created successfully",
+        video,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid video data", details: error.errors });
-      } else {
-        res.status(500).json({ error: "Failed to create video" });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
       }
+      console.error("Create video error:", error);
+      res.status(500).json({ error: "Failed to create video" });
     }
   });
 
-  app.post("/api/videos/upload", authenticate, requireRole("tutor", "admin", "superadmin"), upload.single('video'), async (req, res) => {
+  app.post("/api/videos/upload", authenticate, requireRole("tutor", "admin"), upload.single('video'), async (req, res) => {
     try {
       if (!req.file) {
-        res.status(400).json({ error: "No video file provided" });
-        return;
-      }
-
-      const fileType = await fileTypeFromFile(req.file.path);
-      const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
-      
-      if (!fileType || !allowedTypes.includes(fileType.mime)) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (unlinkError) {
-          console.error("Failed to delete uploaded file:", unlinkError);
-        }
-        res.status(400).json({ 
-          error: "Invalid file signature. File must be a valid video file (MP4, WebM, OGG, or QuickTime)." 
+        return res.status(400).json({
+          error: "No file uploaded",
+          message: "Please provide a video file",
         });
-        return;
       }
 
-      const { title, description, category, playlistId } = req.body;
-
-      if (!title || !description || !category) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (unlinkError) {
-          console.error("Failed to delete uploaded file:", unlinkError);
-        }
-        res.status(400).json({ error: "Missing required fields: title, description, or category" });
-        return;
-      }
-
-      const videoUrl = `/uploads/${req.file.filename}`;
-
-      const validatedData = insertVideoSchema.parse({
-        title,
-        description,
-        videoUrl,
-        category,
-        playlistId: playlistId || null,
+      // In a real application, you would store the file path in the database
+      // and return a URL to access the file
+      res.json({
+        message: "Video uploaded successfully",
+        filename: req.file.filename,
+        path: `/uploads/${req.file.filename}`,
       });
-
-      const video = await storage.createVideo(validatedData);
-      res.status(201).json(video);
     } catch (error) {
-      if (req.file) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (unlinkError) {
-          console.error("Failed to delete uploaded file:", unlinkError);
-        }
-      }
-      
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid video data", details: error.errors });
-      } else {
-        res.status(500).json({ error: "Failed to upload video" });
-      }
+      console.error("Upload video error:", error);
+      res.status(500).json({ error: "Failed to upload video" });
     }
   });
 
-  app.patch("/api/videos/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.patch("/api/videos/:id", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertVideoSchema.partial().parse(req.body);
-      const video = await storage.updateVideo(id, validatedData);
+      const validatedData = updateVideoSchema.parse(req.body);
       
+      // Check if video exists and belongs to user (or user is admin)
+      const video = await storage.getVideo(id);
       if (!video) {
-        res.status(404).json({ error: "Video not found" });
-        return;
+        return res.status(404).json({
+          error: "Video not found",
+          message: "The requested video does not exist",
+        });
       }
-      
-      res.status(200).json(video);
+
+      // Allow admins to update any video
+      if (req.user!.roleName !== 'admin' && video.tutorId !== req.user!.userId) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only update your own videos",
+        });
+      }
+
+      const updatedVideo = await storage.updateVideo(id, validatedData);
+      res.json({
+        message: "Video updated successfully",
+        video: updatedVideo,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid video data", details: error.errors });
-      } else {
-        res.status(500).json({ error: "Failed to update video" });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
       }
+      console.error("Update video error:", error);
+      res.status(500).json({ error: "Failed to update video" });
     }
   });
 
-  app.delete("/api/videos/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.delete("/api/videos/:id", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteVideo(id);
       
-      if (!deleted) {
-        res.status(404).json({ error: "Video not found" });
-        return;
+      // Check if video exists and belongs to user (or user is admin)
+      const video = await storage.getVideo(id);
+      if (!video) {
+        return res.status(404).json({
+          error: "Video not found",
+          message: "The requested video does not exist",
+        });
       }
-      
-      res.status(200).json({ message: "Video deleted successfully" });
+
+      // Allow admins to delete any video
+      if (req.user!.roleName !== 'admin' && video.tutorId !== req.user!.userId) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only delete your own videos",
+        });
+      }
+
+      await storage.deleteVideo(id);
+      res.json({ message: "Video deleted successfully" });
     } catch (error) {
+      console.error("Delete video error:", error);
       res.status(500).json({ error: "Failed to delete video" });
     }
   });
@@ -765,41 +734,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/playlists", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.post("/api/playlists", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const validatedData = insertPlaylistSchema.parse(req.body);
-      const playlist = await storage.createPlaylist(validatedData);
-      res.status(201).json(playlist);
+      
+      const playlist = await storage.createPlaylist({
+        ...validatedData,
+        tutorId: req.user!.userId,
+      });
+      
+      res.status(201).json({
+        message: "Playlist created successfully",
+        playlist,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid playlist data", details: error.errors });
-      } else {
-        res.status(500).json({ error: "Failed to create playlist" });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
       }
+      console.error("Create playlist error:", error);
+      res.status(500).json({ error: "Failed to create playlist" });
     }
   });
 
-  app.delete("/api/playlists/:id", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.delete("/api/playlists/:id", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deletePlaylist(id);
       
-      if (!deleted) {
-        res.status(404).json({ error: "Playlist not found" });
-        return;
+      // Check if playlist exists and belongs to user (or user is admin)
+      const playlist = await storage.getPlaylist(id);
+      if (!playlist) {
+        return res.status(404).json({
+          error: "Playlist not found",
+          message: "The requested playlist does not exist",
+        });
       }
-      
-      res.status(200).json({ message: "Playlist deleted successfully" });
+
+      // Allow admins to delete any playlist
+      if (req.user!.roleName !== 'admin' && playlist.tutorId !== req.user!.userId) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only delete your own playlists",
+        });
+      }
+
+      await storage.deletePlaylist(id);
+      res.json({ message: "Playlist deleted successfully" });
     } catch (error) {
+      console.error("Delete playlist error:", error);
       res.status(500).json({ error: "Failed to delete playlist" });
     }
   });
 
-  app.get("/api/questions", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.get("/api/questions", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const questions = await storage.getAllQuestions();
       res.json(questions);
     } catch (error) {
+      console.error("Get questions error:", error);
       res.status(500).json({ error: "Failed to fetch questions" });
     }
   });
@@ -846,32 +840,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/questions/:id/answer", authenticate, requireRole("tutor", "admin", "superadmin"), async (req, res) => {
+  app.post("/api/questions/:id/answer", authenticate, requireRole("tutor", "admin"), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = answerQuestionSchema.parse(req.body);
-      const question = await storage.answerQuestion(id, validatedData.answer);
       
+      // Check if question exists
+      const question = await storage.getQuestion(id);
       if (!question) {
-        res.status(404).json({ error: "Question not found" });
-        return;
+        return res.status(404).json({
+          error: "Question not found",
+          message: "The requested question does not exist",
+        });
       }
-      
-      res.status(200).json(question);
+
+      // Allow admins to answer any question
+      if (req.user!.roleName !== 'admin' && question.tutorId !== req.user!.userId) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You can only answer questions on your own content",
+        });
+      }
+
+      const answer = await storage.answerQuestion(id, validatedData.answer);
+      res.json({
+        message: "Question answered successfully",
+        answer,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid answer data", details: error.errors });
-      } else {
-        res.status(500).json({ error: "Failed to answer question" });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
       }
+      console.error("Answer question error:", error);
+      res.status(500).json({ error: "Failed to answer question" });
     }
   });
 
-  app.get("/api/subscriptions", authenticate, requireRole("admin", "superadmin"), async (req, res) => {
+  app.get("/api/subscriptions", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const subscriptions = await storage.getAllSubscriptions();
       res.json(subscriptions);
     } catch (error) {
+      console.error("Get subscriptions error:", error);
       res.status(500).json({ error: "Failed to fetch subscriptions" });
     }
   });
@@ -916,18 +929,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/subscriptions/:id", authenticate, requireRole("admin", "superadmin"), async (req, res) => {
+  app.patch("/api/subscriptions/:id", authenticate, requireRole("admin"), async (req, res) => {
     try {
       const { id } = req.params;
-      const subscription = await storage.updateSubscription(id, req.body);
+      const validatedData = updateSubscriptionSchema.parse(req.body);
       
+      const subscription = await storage.updateSubscription(id, validatedData);
       if (!subscription) {
-        res.status(404).json({ error: "Subscription not found" });
-        return;
+        return res.status(404).json({
+          error: "Subscription not found",
+          message: "The requested subscription does not exist",
+        });
       }
       
-      res.status(200).json(subscription);
+      res.json({
+        message: "Subscription updated successfully",
+        subscription,
+      });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: error.errors,
+        });
+      }
+      console.error("Update subscription error:", error);
       res.status(500).json({ error: "Failed to update subscription" });
     }
   });

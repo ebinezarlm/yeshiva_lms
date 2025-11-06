@@ -1,23 +1,30 @@
-import { LayoutDashboard, Users, CreditCard, FileText, Settings, X } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, FileText, Settings, Shield, Activity, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocation } from 'wouter';
 
 interface SidebarProps {
-  activeSection: string;
-  setActiveSection: (section: string) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
 
-const menuItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "users", label: "Users", icon: Users },
-  { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
-  { id: "invoices", label: "Invoices", icon: FileText },
-  { id: "settings", label: "Settings", icon: Settings },
-];
+export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
+  const [location, setLocation] = useLocation();
+  
+  // Extract the current section from the URL
+  const pathParts = location.split('/');
+  const activeSection = pathParts[2] || 'dashboard'; // Default to dashboard
 
-export function Sidebar({ activeSection, setActiveSection, isOpen, setIsOpen }: SidebarProps) {
+  const menuItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { id: "system-dashboard", label: "System Dashboard", icon: Activity, path: "/admin/system-dashboard" },
+    { id: "access-control", label: "Access Control", icon: Shield, path: "/admin/access-control" },
+    { id: "users", label: "Users", icon: Users, path: "/admin/users" },
+    { id: "subscriptions", label: "Subscriptions", icon: CreditCard, path: "/admin/subscriptions" },
+    { id: "invoices", label: "Invoices", icon: FileText, path: "/admin/invoices" },
+    { id: "settings", label: "Settings", icon: Settings, path: "/admin/settings" },
+  ];
+
   return (
     <>
       {isOpen && (
@@ -65,7 +72,7 @@ export function Sidebar({ activeSection, setActiveSection, isOpen, setIsOpen }: 
                   isActive && "bg-primary/10 text-primary font-medium"
                 )}
                 onClick={() => {
-                  setActiveSection(item.id);
+                  setLocation(item.path);
                   setIsOpen(false);
                 }}
                 data-testid={`button-nav-${item.id}`}

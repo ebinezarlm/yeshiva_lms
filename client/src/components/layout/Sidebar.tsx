@@ -20,7 +20,8 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
-  Shield
+  Shield,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -33,6 +34,7 @@ interface SidebarItem {
 
 const adminMenuItems: SidebarItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+  { label: 'Access Control', icon: Shield, path: '/admin/access-control' },
   { label: 'Users', icon: Users, path: '/admin/users' },
   { label: 'Playlists', icon: PlaySquare, path: '/admin/playlists' },
   { label: 'Payments', icon: CreditCard, path: '/admin/payments' },
@@ -59,14 +61,6 @@ const studentMenuItems: SidebarItem[] = [
   { label: 'Profile', icon: UserCircle, path: '/student/profile' },
 ];
 
-const superadminMenuItems: SidebarItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/superadmin/dashboard' },
-  { label: 'Access Control', icon: Shield, path: '/superadmin/access-control' },
-  { label: 'All Users', icon: Users, path: '/superadmin/users' },
-  { label: 'System Logs', icon: FileText, path: '/superadmin/logs' },
-  { label: 'Settings', icon: Settings, path: '/superadmin/settings' },
-];
-
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -77,10 +71,9 @@ export function Sidebar() {
 
   let menuItems: SidebarItem[];
   
-  if (user.role === 'superadmin') {
-    menuItems = superadminMenuItems;
-  } else if (user.role === 'admin') {
-    menuItems = adminMenuItems.filter(item => hasPermission('admin', item.label));
+  // Give admin users access to all admin features
+  if (user.role === 'admin') {
+    menuItems = adminMenuItems;
   } else if (user.role === 'tutor') {
     menuItems = tutorMenuItems.filter(item => hasPermission('tutor', item.label));
   } else {

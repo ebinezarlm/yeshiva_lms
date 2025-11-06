@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import apiClient, { setTokens, getAccessToken as getToken } from '@/lib/axios';
 import axios from 'axios';
 
-export type UserRole = 'superadmin' | 'admin' | 'tutor' | 'student';
+export type UserRole = 'admin' | 'tutor' | 'student';
 
 export interface User {
   id: string;
@@ -83,9 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Create mock user based on email
+      // Give admin users the same permissions as superadmin
       let role: UserRole = 'student';
       if (email.includes('admin')) role = 'admin';
-      if (email.includes('superadmin')) role = 'superadmin';
       if (email.includes('tutor')) role = 'tutor';
       
       const mockUser: User = {

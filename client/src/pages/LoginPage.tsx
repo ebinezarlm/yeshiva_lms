@@ -21,9 +21,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const redirectPath =
-        user.role === 'superadmin'
-          ? '/superadmin/dashboard'
-          : user.role === 'admin'
+        user.role === 'admin'
           ? '/admin/dashboard'
           : user.role === 'tutor'
           ? '/tutor/dashboard'
@@ -64,14 +62,18 @@ export default function LoginPage() {
   };
 
   const handleQuickLogin = (quickRole: UserRole) => {
-    const emails: Record<UserRole, string> = {
-      superadmin: 'superadmin@lms.com',
+    // Only include roles that still exist
+    const emails: Partial<Record<UserRole, string>> = {
       admin: 'admin@lms.com',
       tutor: 'tutor@lms.com',
       student: 'student@lms.com',
     };
-    setEmail(emails[quickRole]);
-    setPassword('password123');
+    
+    const email = emails[quickRole];
+    if (email) {
+      setEmail(email);
+      setPassword('password123');
+    }
   };
 
   // Bypass authentication for development
@@ -158,7 +160,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="grid grid-cols-3 gap-2 mt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -185,15 +187,6 @@ export default function LoginPage() {
                 data-testid="button-quick-admin"
               >
                 Admin
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickLogin('superadmin')}
-                data-testid="button-quick-superadmin"
-              >
-                Super Admin
               </Button>
             </div>
           </div>

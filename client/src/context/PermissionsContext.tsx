@@ -1,68 +1,103 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserRole } from './AuthContext';
 
-export interface RolePermissions {
+// Define the structure of permissions
+interface Permissions {
   admin: string[];
   tutor: string[];
   student: string[];
 }
 
-interface PermissionsContextType {
-  permissions: RolePermissions;
-  updatePermissions: (role: keyof RolePermissions, features: string[]) => void;
-  updateAllPermissions: (newPermissions: RolePermissions) => void;
-  hasPermission: (role: UserRole, feature: string) => boolean;
-}
-
-const defaultPermissions: RolePermissions = {
-  admin: ['Dashboard', 'Users', 'Playlists', 'Payments', 'Settings'],
-  tutor: ['Dashboard', 'My Playlists', 'Upload Videos', 'Comments & Q&A', 'Earnings', 'Profile'],
-  student: ['Dashboard', 'My Playlists', 'Explore', 'Subscriptions', 'Q&A', 'Profile'],
+// Default permissions for each role
+const DEFAULT_PERMISSIONS: Permissions = {
+  admin: [
+    'Dashboard',
+    'System Dashboard',
+    'Access Control',
+    'Users',
+    'Playlists',
+    'Payments',
+    'Subscriptions',
+    'Invoices',
+    'Analytics',
+    'Settings',
+  ],
+  tutor: [
+    'Dashboard',
+    'My Playlists',
+    'Upload Videos',
+    'Comments & Q&A',
+    'Earnings',
+    'Profile',
+  ],
+  student: [
+    'Dashboard',
+    'My Playlists',
+    'Explore',
+    'Subscriptions',
+    'Q&A',
+    'Profile',
+  ],
 };
+
+interface PermissionsContextType {
+  permissions: Permissions;
+  hasPermission: (role: keyof Permissions, feature: string) => boolean;
+  updateRolePermissions: (role: keyof Permissions, features: string[]) => void;
+  updateAllPermissions: (newPermissions: Permissions) => void;
+}
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const [permissions, setPermissions] = useState<RolePermissions>(defaultPermissions);
+  const [permissions, setPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
 
+  // Load permissions from localStorage on initial load
   useEffect(() => {
-    const storedPermissions = localStorage.getItem('lms_permissions');
-    if (storedPermissions) {
+    const savedPermissions = localStorage.getItem('lms_permissions');
+    if (savedPermissions) {
       try {
-        setPermissions(JSON.parse(storedPermissions));
+        setPermissions(JSON.parse(savedPermissions));
       } catch (error) {
-        console.error('Failed to parse stored permissions:', error);
+        console.error('Failed to parse permissions from localStorage:', error);
       }
     }
   }, []);
 
-  const updatePermissions = (role: keyof RolePermissions, features: string[]) => {
-    const newPermissions = {
-      ...permissions,
+  // Save permissions to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('lms_permissions', JSON.stringify(permissions));
+  }, [permissions]);
+
+  const hasPermission = (role: keyof Permissions, feature: string): boolean => {
+    // Admin has access to all features
+    if (role === 'admin') return true;
+    
+    return permissions[role]?.includes(feature) || false;
+  };
+
+  const updateRolePermissions = (role: keyof Permissions, features: string[]) => {
+    setPermissions(prev => ({
+      ...prev,
       [role]: features,
-    };
-    setPermissions(newPermissions);
-    localStorage.setItem('lms_permissions', JSON.stringify(newPermissions));
+    }));
   };
 
-  const updateAllPermissions = (newPermissions: RolePermissions) => {
+  const updateAllPermissions = (newPermissions: Permissions) => {
     setPermissions(newPermissions);
-    localStorage.setItem('lms_permissions', JSON.stringify(newPermissions));
-  };
-
-  const hasPermission = (role: UserRole, feature: string): boolean => {
-    if (role === 'superadmin') return true;
-    return permissions[role as keyof RolePermissions]?.includes(feature) ?? false;
   };
 
   const value: PermissionsContextType = {
     permissions,
-    updatePermissions,
-    updateAllPermissions,
     hasPermission,
+    updateRolePermissions,
+    updateAllPermissions,
   };
 
-  return <PermissionsContext.Provider value={value}>{children}</PermissionsContext.Provider>;
+  return (
+    <PermissionsContext.Provider value={value}>
+      {children}
+    </PermissionsContext.Provider>
+  );
 }
 
 export function usePermissions() {

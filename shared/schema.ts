@@ -104,7 +104,7 @@ export const loginSchema = z.object({
 });
 
 export const updateUserRoleSchema = z.object({
-  roleName: z.enum(["superadmin", "admin", "tutor", "student"]),
+  roleName: z.enum(["admin", "tutor", "student"]),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

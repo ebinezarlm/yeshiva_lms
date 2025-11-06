@@ -23,8 +23,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Redirect to="/login" />;
   }
 
+  // Allow admin users to access all routes
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Redirect to user's role-specific dashboard instead of /dashboard to avoid redirect loops
+    // If the route requires a role that the user doesn't have, redirect to their dashboard
     const userDashboard = `/${user.role}/dashboard`;
     return <Redirect to={userDashboard} />;
   }

@@ -52,7 +52,7 @@ const roleConfig = {
   },
 };
 
-export default function SuperAdminAccessControlPage() {
+export default function AdminAccessControlPage() {
   const { permissions, updateAllPermissions } = usePermissions();
   const { toast } = useToast();
   const [localPermissions, setLocalPermissions] = useState(permissions);
@@ -207,7 +207,7 @@ export default function SuperAdminAccessControlPage() {
             <li>Changes will take effect immediately for new sessions</li>
             <li>Users may need to log out and log back in to see updated permissions</li>
             <li>Permissions are stored locally in the browser (mock backend)</li>
-            <li>Super Admin always has access to all features</li>
+            <li>Admin has access to all system management features</li>
           </ul>
         </CardContent>
       </Card>
