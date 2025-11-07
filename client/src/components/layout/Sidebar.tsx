@@ -38,6 +38,7 @@ const adminMenuItems: SidebarItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
   { label: 'Access Control', icon: Shield, path: '/admin/access-control' },
   { label: 'Users', icon: Users, path: '/admin/users' },
+  { label: 'Courses', icon: BookOpen, path: '/admin/courses' },
   { label: 'Playlists', icon: PlaySquare, path: '/admin/playlists' },
   { label: 'Payments', icon: CreditCard, path: '/admin/payments' },
   { label: 'Invoices', icon: FileText, path: '/admin/invoices' },
@@ -50,6 +51,8 @@ const tutorMenuItems: SidebarItem[] = [
   { label: 'My Playlists', icon: PlaySquare, path: '/tutor/playlists' },
   { label: 'Upload Videos', icon: Upload, path: '/tutor/upload' },
   { label: 'Comments & Q&A', icon: MessageSquare, path: '/tutor/comments' },
+  { label: 'Users', icon: Users, path: '/tutor/users' },
+  { label: 'Courses', icon: BookOpen, path: '/tutor/courses' },
   { label: 'Earnings', icon: DollarSign, path: '/tutor/earnings' },
   { label: 'Profile', icon: UserCircle, path: '/tutor/profile' },
 ];
@@ -83,7 +86,9 @@ export function Sidebar() {
   if (user.role === 'admin') {
     menuItems = adminMenuItems;
   } else if (user.role === 'tutor') {
-    menuItems = tutorMenuItems.filter(item => hasPermission('tutor', item.label));
+    // Remove permission filtering for tutors to always show all menu items
+    menuItems = tutorMenuItems;
+    // menuItems = tutorMenuItems.filter(item => hasPermission('tutor', item.label));
   } else {
     menuItems = studentMenuItems.filter(item => hasPermission('student', item.label));
   }

@@ -26,6 +26,7 @@ const DEFAULT_PERMISSIONS: Permissions = {
     'My Playlists',
     'Upload Videos',
     'Comments & Q&A',
+    'Users',
     'Earnings',
     'Profile',
   ],

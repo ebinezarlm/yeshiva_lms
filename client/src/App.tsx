@@ -20,6 +20,7 @@ import AdminPlaylistsPage from '@/pages/admin/AdminPlaylistsPage';
 import AdminPaymentsPage from '@/pages/admin/AdminPaymentsPage';
 import AdminSettingsPage from '@/pages/admin/AdminSettingsPage';
 import AdminAccessControlPage from '@/pages/admin/AdminAccessControlPage';
+import AdminCoursesPage from '@/pages/admin/AdminCoursesPage';
 
 // Tutor Pages
 import TutorDashboardPage from '@/pages/tutor/TutorDashboardPage';
@@ -28,6 +29,8 @@ import TutorUploadVideosPage from '@/pages/tutor/TutorUploadVideosPage';
 import TutorCommentsPage from '@/pages/tutor/TutorCommentsPage';
 import TutorEarningsPage from '@/pages/tutor/TutorEarningsPage';
 import TutorProfilePage from '@/pages/tutor/TutorProfilePage';
+import TutorUsersPage from '@/pages/tutor/TutorUsersPage';
+import TutorCoursesPage from '@/pages/tutor/TutorCoursesPage';
 
 // Student Pages
 import StudentDashboardPage from '@/pages/student/StudentDashboardPage';
@@ -103,6 +106,12 @@ function Router() {
           </ProtectedRoute>
         </Route>
 
+        <Route path="/admin/courses">
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminCoursesPage />
+          </ProtectedRoute>
+        </Route>
+
         <Route path="/admin/playlists">
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminPlaylistsPage />
@@ -148,6 +157,18 @@ function Router() {
         <Route path="/tutor/earnings">
           <ProtectedRoute allowedRoles={['tutor']}>
             <TutorEarningsPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/tutor/users">
+          <ProtectedRoute allowedRoles={['tutor']}>
+            <TutorUsersPage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/tutor/courses">
+          <ProtectedRoute allowedRoles={['tutor']}>
+            <TutorCoursesPage />
           </ProtectedRoute>
         </Route>
 

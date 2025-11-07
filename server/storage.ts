@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, type Role, type InsertRole, type Permission, type InsertPermission, type RolePermission, type InsertRolePermission, type UpdateRole, users, videos, comments, questions, playlists, subscriptions, watchProgress, roles, permissions, rolePermissions } from "@shared/schema";
+import { type User, type InsertUser, type Video, type InsertVideo, type Comment, type InsertComment, type Question, type InsertQuestion, type Playlist, type InsertPlaylist, type Subscription, type InsertSubscription, type WatchProgress, type InsertWatchProgress, type Role, type InsertRole, type Permission, type InsertPermission, type RolePermission, type InsertRolePermission, type UpdateRole, type TutorAdminMapping, type InsertTutorAdminMapping, type StudentTutorMapping, type InsertStudentTutorMapping, users, videos, comments, questions, playlists, subscriptions, watchProgress, roles, permissions, rolePermissions, tutorAdminMappings, studentTutorMappings } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -27,6 +27,20 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserRole(id: string, roleId: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  getUsersByCreatorId(creatorId: string): Promise<User[]>;
+  
+  // User hierarchy methods
+  getStudentsByTutorId(tutorId: string): Promise<User[]>;
+  getTutorsByAdminId(adminId: string): Promise<User[]>;
+  getAllTutors(): Promise<User[]>;
+  getAllStudents(): Promise<User[]>;
+  
+  // Cascading deletion methods
+  deleteStudentsByTutorId(tutorId: string): Promise<number>;
+  deleteTutorsByAdminId(adminId: string): Promise<number>;
+  deleteTutorAdminMappingsByTutorId(tutorId: string): Promise<number>;
+  deleteStudentTutorMappingsByTutorId(tutorId: string): Promise<number>;
+  deleteStudentTutorMappingsByStudentId(studentId: string): Promise<number>;
   
   getAllPlaylists(): Promise<Playlist[]>;
   getPlaylist(id: string): Promise<Playlist | undefined>;
@@ -47,6 +61,7 @@ export interface IStorage {
   getAllQuestions(): Promise<Question[]>;
   getQuestionsByVideoId(videoId: string): Promise<Question[]>;
   getQuestionsByStudentEmail(email: string): Promise<Question[]>;
+  getQuestion(id: string): Promise<Question | undefined>;
   createQuestion(question: InsertQuestion): Promise<Question>;
   answerQuestion(id: string, answer: string): Promise<Question | undefined>;
   
@@ -59,6 +74,18 @@ export interface IStorage {
   getWatchProgressByEmail(email: string): Promise<WatchProgress[]>;
   getWatchProgressByPlaylist(email: string, playlistId: string): Promise<WatchProgress[]>;
   upsertWatchProgress(progress: InsertWatchProgress): Promise<WatchProgress>;
+  
+  // Tutor-Admin Mapping methods
+  createTutorAdminMapping(mapping: InsertTutorAdminMapping): Promise<TutorAdminMapping>;
+  getTutorAdminMapping(tutorId: string): Promise<TutorAdminMapping | undefined>;
+  
+  // Student-Tutor Mapping methods
+  createStudentTutorMapping(mapping: InsertStudentTutorMapping): Promise<StudentTutorMapping>;
+  getStudentTutorMapping(studentId: string): Promise<StudentTutorMapping | undefined>;
+  
+  // Add missing permission methods
+  getPermissionByRoleAndResource(roleId: string, resource: string): Promise<Permission | undefined>;
+  deletePermission(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -191,6 +218,7 @@ export class DatabaseStorage implements IStorage {
         passwordHash,
         roleId: insertUser.roleId,
         status: insertUser.status,
+        createdBy: insertUser.createdBy,
       })
       .returning();
     return user;
@@ -206,6 +234,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    // First, check if this user is an admin or tutor and delete their related data
+    const user = await this.getUser(id);
+    if (!user) {
+      return false;
+    }
+    
+    // Get the role of the user
+    const role = await this.getRole(user.roleId);
+    if (!role) {
+      // If we can't determine the role, just delete the user
+      const result = await db.delete(users).where(eq(users.id, id)).returning();
+      return result.length > 0;
+    }
+    
+    // If the user is an admin, delete all tutors they created
+    if (role.name === "admin") {
+      await this.deleteTutorsByAdminId(id);
+    }
+    
+    // If the user is a tutor, delete all students they created and mappings
+    if (role.name === "tutor") {
+      await this.deleteStudentsByTutorId(id);
+      await this.deleteTutorAdminMappingsByTutorId(id);
+      await this.deleteStudentTutorMappingsByTutorId(id);
+    }
+    
+    // If the user is a student, delete their mappings
+    if (role.name === "student") {
+      await this.deleteStudentTutorMappingsByStudentId(id);
+    }
+    
+    // Finally, delete the user
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
@@ -254,9 +314,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateVideo(id: string, updateData: Partial<InsertVideo>): Promise<Video | undefined> {
+    // Handle tutorId null case by converting null to undefined
+    const processedUpdateData: Partial<InsertVideo> = { ...updateData };
+    if ('tutorId' in processedUpdateData && processedUpdateData.tutorId === null) {
+      processedUpdateData.tutorId = undefined;
+    }
+    
     const [video] = await db
       .update(videos)
-      .set(updateData)
+      .set(processedUpdateData)
       .where(eq(videos.id, id))
       .returning();
     return video || undefined;
@@ -298,6 +364,11 @@ export class DatabaseStorage implements IStorage {
 
   async getQuestionsByStudentEmail(email: string): Promise<Question[]> {
     return await db.select().from(questions).where(eq(questions.studentEmail, email));
+  }
+
+  async getQuestion(id: string): Promise<Question | undefined> {
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    return question || undefined;
   }
 
   async createQuestion(insertQuestion: InsertQuestion): Promise<Question> {
@@ -382,6 +453,146 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return progress;
     }
+  }
+  
+  async createTutorAdminMapping(insertMapping: InsertTutorAdminMapping): Promise<TutorAdminMapping> {
+    const [mapping] = await db
+      .insert(tutorAdminMappings)
+      .values(insertMapping)
+      .returning();
+    return mapping;
+  }
+  
+  async getTutorAdminMapping(tutorId: string): Promise<TutorAdminMapping | undefined> {
+    const [mapping] = await db.select().from(tutorAdminMappings).where(eq(tutorAdminMappings.tutorId, tutorId));
+    return mapping || undefined;
+  }
+  
+  async createStudentTutorMapping(insertMapping: InsertStudentTutorMapping): Promise<StudentTutorMapping> {
+    const [mapping] = await db
+      .insert(studentTutorMappings)
+      .values(insertMapping)
+      .returning();
+    return mapping;
+  }
+  
+  async getStudentTutorMapping(studentId: string): Promise<StudentTutorMapping | undefined> {
+    const [mapping] = await db.select().from(studentTutorMappings).where(eq(studentTutorMappings.studentId, studentId));
+    return mapping || undefined;
+  }
+  
+  async getStudentsByTutorId(tutorId: string): Promise<User[]> {
+    // Get all students that are mapped to this tutor
+    const mappings = await db.select().from(studentTutorMappings).where(eq(studentTutorMappings.tutorId, tutorId));
+    const studentIds = mappings.map(mapping => mapping.studentId);
+    
+    if (studentIds.length === 0) {
+      return [];
+    }
+    
+    // Get the student users
+    const students = await db.select().from(users).where(inArray(users.id, studentIds));
+    return students;
+  }
+  
+  async getTutorsByAdminId(adminId: string): Promise<User[]> {
+    // Get all tutors that are mapped to this admin
+    const mappings = await db.select().from(tutorAdminMappings).where(eq(tutorAdminMappings.adminId, adminId));
+    const tutorIds = mappings.map(mapping => mapping.tutorId);
+    
+    if (tutorIds.length === 0) {
+      return [];
+    }
+    
+    // Get the tutor users
+    const tutors = await db.select().from(users).where(inArray(users.id, tutorIds));
+    return tutors;
+  }
+  
+  async getAllTutors(): Promise<User[]> {
+    // Get all users with tutor role
+    const tutorRole = await this.getRoleByName("tutor");
+    if (!tutorRole) {
+      return [];
+    }
+    
+    return await db.select().from(users).where(eq(users.roleId, tutorRole.id));
+  }
+  
+  async getAllStudents(): Promise<User[]> {
+    // Get all users with student role
+    const studentRole = await this.getRoleByName("student");
+    if (!studentRole) {
+      return [];
+    }
+    
+    return await db.select().from(users).where(eq(users.roleId, studentRole.id));
+  }
+  
+  async deleteStudentsByTutorId(tutorId: string): Promise<number> {
+    // Get all students that are mapped to this tutor
+    const mappings = await db.select().from(studentTutorMappings).where(eq(studentTutorMappings.tutorId, tutorId));
+    const studentIds = mappings.map(mapping => mapping.studentId);
+    
+    if (studentIds.length === 0) {
+      return 0;
+    }
+    
+    // Delete the student users
+    const result = await db.delete(users).where(inArray(users.id, studentIds)).returning();
+    return result.length;
+  }
+  
+  async deleteTutorsByAdminId(adminId: string): Promise<number> {
+    // Get all tutors that are mapped to this admin
+    const mappings = await db.select().from(tutorAdminMappings).where(eq(tutorAdminMappings.adminId, adminId));
+    const tutorIds = mappings.map(mapping => mapping.tutorId);
+    
+    if (tutorIds.length === 0) {
+      return 0;
+    }
+    
+    // Delete the tutor users
+    const result = await db.delete(users).where(inArray(users.id, tutorIds)).returning();
+    return result.length;
+  }
+  
+  async deleteTutorAdminMappingsByTutorId(tutorId: string): Promise<number> {
+    const result = await db.delete(tutorAdminMappings).where(eq(tutorAdminMappings.tutorId, tutorId));
+    return result.rowCount ?? 0;
+  }
+  
+  async deleteStudentTutorMappingsByTutorId(tutorId: string): Promise<number> {
+    const result = await db.delete(studentTutorMappings).where(eq(studentTutorMappings.tutorId, tutorId));
+    return result.rowCount ?? 0;
+  }
+  
+  async deleteStudentTutorMappingsByStudentId(studentId: string): Promise<number> {
+    const result = await db.delete(studentTutorMappings).where(eq(studentTutorMappings.studentId, studentId));
+    return result.rowCount ?? 0;
+  }
+  
+  async getUsersByCreatorId(creatorId: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.createdBy, creatorId));
+  }
+  
+  async getPermissionByRoleAndResource(roleId: string, resource: string): Promise<Permission | undefined> {
+    const [permission] = await db
+      .select()
+      .from(permissions)
+      .innerJoin(rolePermissions, eq(permissions.id, rolePermissions.permissionId))
+      .where(
+        and(
+          eq(rolePermissions.roleId, roleId),
+          eq(permissions.featureName, resource)
+        )
+      );
+    return permission ? permission.permissions : undefined;
+  }
+  
+  async deletePermission(id: string): Promise<boolean> {
+    const result = await db.delete(permissions).where(eq(permissions.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

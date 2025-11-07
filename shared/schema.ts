@@ -77,6 +77,21 @@ export const users = pgTable("users", {
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdBy: varchar("created_by"), // References the user who created this user
+});
+
+export const tutorAdminMapping = pgTable("tutor_admin_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: varchar("tutor_id").notNull(),
+  adminId: varchar("admin_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const studentTutorMapping = pgTable("student_tutor_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull(),
+  tutorId: varchar("tutor_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -90,6 +105,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   password: z.string().min(8, "Password must be at least 8 characters"),
   roleId: z.string().min(1, "Role is required"),
   status: z.enum(["active", "inactive", "suspended"]).default("active"),
+  createdBy: z.string().optional(), // Optional field for user hierarchy
 });
 
 export const signupSchema = z.object({
@@ -124,6 +140,7 @@ export const playlists = pgTable("playlists", {
   videoCount: integer("video_count").notNull().default(0),
   viewCount: integer("view_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  tutorId: varchar("tutor_id"), // Add tutorId field
 });
 
 export const insertPlaylistSchema = createInsertSchema(playlists).omit({
@@ -138,6 +155,7 @@ export const insertPlaylistSchema = createInsertSchema(playlists).omit({
   category: z.string().default("General"),
   thumbnail: z.string().optional(),
   isPublic: z.number().default(1),
+  tutorId: z.string().optional(), // Add tutorId to the schema
 });
 
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
@@ -152,6 +170,7 @@ export const videos = pgTable("videos", {
   duration: text("duration").default("0:00"),
   likes: integer("likes").notNull().default(0),
   playlistId: varchar("playlist_id"),
+  tutorId: varchar("tutor_id"), // Add tutorId field
 });
 
 export const insertVideoSchema = createInsertSchema(videos).omit({
@@ -164,9 +183,24 @@ export const insertVideoSchema = createInsertSchema(videos).omit({
   category: z.string().min(1, "Category is required"),
   duration: z.string().optional(),
   playlistId: z.string().optional(),
+  tutorId: z.string().optional(), // Add tutorId to the schema
+});
+
+export const updateVideoSchema = createInsertSchema(videos).omit({
+  id: true,
+  likes: true,
+}).extend({
+  title: z.string().min(1, "Title is required").optional(),
+  description: z.string().min(1, "Description is required").optional(),
+  videoUrl: z.string().url("Must be a valid URL").optional(),
+  category: z.string().min(1, "Category is required").optional(),
+  duration: z.string().optional(),
+  playlistId: z.string().optional(),
+  tutorId: z.string().optional().nullable(), // Add tutorId to the update schema and allow it to be nullable
 });
 
 export type InsertVideo = z.infer<typeof insertVideoSchema>;
+export type UpdateVideo = z.infer<typeof updateVideoSchema>;
 export type Video = typeof videos.$inferSelect;
 
 export const comments = pgTable("comments", {
@@ -198,6 +232,7 @@ export const questions = pgTable("questions", {
   answer: text("answer"),
   answeredAt: timestamp("answered_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  tutorId: varchar("tutor_id"), // Add tutorId field
 });
 
 export const insertQuestionSchema = createInsertSchema(questions).omit({
@@ -210,7 +245,23 @@ export const insertQuestionSchema = createInsertSchema(questions).omit({
   studentEmail: z.string().email("Valid email required"),
   studentName: z.string().min(1, "Student name is required"),
   text: z.string().min(5, "Question must be at least 5 characters"),
+  tutorId: z.string().optional(), // Add tutorId to the schema
 });
+
+export const updateQuestionSchema = createInsertSchema(questions).omit({
+  id: true,
+  createdAt: true,
+  answeredAt: true,
+  answer: true,
+}).extend({
+  videoId: z.string().min(1, "Video is required").optional(),
+  studentEmail: z.string().email("Valid email required").optional(),
+  studentName: z.string().min(1, "Student name is required").optional(),
+  text: z.string().min(5, "Question must be at least 5 characters").optional(),
+  tutorId: z.string().optional().nullable(), // Allow tutorId to be nullable
+});
+
+export type UpdateQuestion = z.infer<typeof updateQuestionSchema>;
 
 export const answerQuestionSchema = z.object({
   answer: z.string().min(1, "Answer text is required"),
@@ -245,7 +296,21 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   amountPaid: z.number().min(0, "Amount must be positive"),
 });
 
+export const updateSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  studentEmail: z.string().email("Must be a valid email").optional(),
+  studentName: z.string().min(1, "Student name is required").optional(),
+  playlistId: z.string().min(1, "Playlist ID is required").optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  status: z.enum(["active", "expired"]).default("active").optional(),
+  amountPaid: z.number().min(0, "Amount must be positive").optional(),
+});
+
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
 
 export const watchProgress = pgTable("watch_progress", {
@@ -257,6 +322,64 @@ export const watchProgress = pgTable("watch_progress", {
   completed: integer("completed").notNull().default(0),
   lastWatched: timestamp("last_watched").notNull().defaultNow(),
 });
+
+export const courses = pgTable("courses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  course_title: text("course_title").notNull(),
+  course_code: text("course_code").notNull().unique(),
+  category_id: varchar("category_id").notNull(),
+  description: text("description").notNull(),
+  learning_outcomes: text("learning_outcomes").array().notNull(),
+  difficulty_level: text("difficulty_level").notNull(),
+  target_audience: text("target_audience"),
+  prerequisites: text("prerequisites"),
+  duration_hours: integer("duration_hours").notNull(),
+  course_thumbnail: text("course_thumbnail"),
+  is_self_paced: integer("is_self_paced").notNull().default(0),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const categories = pgTable("categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).extend({
+  name: z.string().min(1, "Category name is required"),
+  description: z.string().optional(),
+});
+
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type Category = typeof categories.$inferSelect;
+
+export const insertCourseSchema = createInsertSchema(courses).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).extend({
+  course_title: z.string().min(1, "Course title is required"),
+  course_code: z.string().min(1, "Course code is required"),
+  category_id: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Description is required"),
+  learning_outcomes: z.array(z.string()).min(1, "At least one learning outcome is required"),
+  difficulty_level: z.enum(["Beginner", "Intermediate", "Advanced"]),
+  target_audience: z.string().optional(),
+  prerequisites: z.string().optional(),
+  duration_hours: z.number().min(1, "Duration must be at least 1 hour"),
+  course_thumbnail: z.string().optional(),
+  is_self_paced: z.number().default(0),
+});
+
+export type InsertCourse = z.infer<typeof insertCourseSchema>;
+export type Course = typeof courses.$inferSelect;
 
 export const insertWatchProgressSchema = createInsertSchema(watchProgress).omit({
   id: true,
@@ -270,3 +393,41 @@ export const insertWatchProgressSchema = createInsertSchema(watchProgress).omit(
 
 export type InsertWatchProgress = z.infer<typeof insertWatchProgressSchema>;
 export type WatchProgress = typeof watchProgress.$inferSelect;
+
+// Tutor-Admin Mapping Schema
+export const tutorAdminMappings = pgTable("tutor_admin_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: varchar("tutor_id").notNull(),
+  adminId: varchar("admin_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTutorAdminMappingSchema = createInsertSchema(tutorAdminMappings).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  tutorId: z.string().min(1, "Tutor ID is required"),
+  adminId: z.string().min(1, "Admin ID is required"),
+});
+
+export type InsertTutorAdminMapping = z.infer<typeof insertTutorAdminMappingSchema>;
+export type TutorAdminMapping = typeof tutorAdminMappings.$inferSelect;
+
+// Student-Tutor Mapping Schema
+export const studentTutorMappings = pgTable("student_tutor_mapping", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull(),
+  tutorId: varchar("tutor_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertStudentTutorMappingSchema = createInsertSchema(studentTutorMappings).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  studentId: z.string().min(1, "Student ID is required"),
+  tutorId: z.string().min(1, "Tutor ID is required"),
+});
+
+export type InsertStudentTutorMapping = z.infer<typeof insertStudentTutorMappingSchema>;
+export type StudentTutorMapping = typeof studentTutorMappings.$inferSelect;

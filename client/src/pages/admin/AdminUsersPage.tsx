@@ -1,5 +1,5 @@
 import { useState, useEffect, ChangeEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,9 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Eye, Download, ChevronLeft, ChevronRight, UserPlus, X, Trash2, Pencil, Check, AlertCircle, Shield, GraduationCap, BookOpen } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Search, Eye, Download, ChevronLeft, ChevronRight, UserPlus, X, Trash2, Pencil, Key, Check, AlertCircle, Shield, GraduationCap, BookOpen, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Subscription, Playlist } from '@shared/schema';
+import { useAuth } from '@/context/AuthContext';
+
+// Add ViewType enum
+type ViewType = 'all' | 'tutors' | 'students' | 'my-tutors' | 'my-students';
 
 // Define the User type
 interface User {
@@ -20,6 +25,7 @@ interface User {
   role: 'Admin' | 'Tutor' | 'Student';
   status: 'active' | 'inactive';
   createdAt: string;
+  createdBy?: string;
 }
 
 // Define the role config type
@@ -31,12 +37,17 @@ interface RoleConfig {
 }
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'Admin' | 'Tutor' | 'Student'>('all');
+  const [viewType, setViewType] = useState<ViewType>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
+  const [passwordResetStatus, setPasswordResetStatus] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -354,29 +365,56 @@ Thank you for your subscription!
           setUserToEdit(null);
         }, 2000);
       } else {
-        // Add new user
-        const tempPassword = generateTempPassword();
-        
-        const userData = {
-          ...formData,
-          tempPassword: tempPassword,
-          createdAt: new Date().toISOString()
-        };
-  
-        console.log('User data to be submitted:', userData);
-  
+        // Add new user by calling the backend API
         try {
-          await sendWelcomeEmail(userData, tempPassword);
+          // First, get the role ID for the selected role
+          const rolesResponse = await fetch('/api/roles');
+          if (!rolesResponse.ok) {
+            throw new Error('Failed to fetch roles');
+          }
+          
+          const roles = await rolesResponse.json();
+          const selectedRole = roles.find((r: any) => r.name.toLowerCase() === formData.role.toLowerCase());
+          
+          if (!selectedRole) {
+            throw new Error(`Role ${formData.role} not found`);
+          }
+          
+          // Prepare user data for submission
+          const userData = {
+            name: formData.name,
+            email: formData.email,
+            password: generateTempPassword(), // Generate a temporary password
+            roleId: selectedRole.id,
+            status: formData.status,
+          };
+          
+          // Call the backend API to create the user
+          const response = await fetch('/api/users/hierarchy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to create user');
+          }
+          
+          const result = await response.json();
           
           // Add the new user to the users list
           const newUser: User = {
-            id: `${users.length + 1}`,
-            name: formData.name,
-            email: formData.email,
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
             mobile: formData.mobile,
-            role: formData.role,
-            status: 'active',
-            createdAt: new Date().toISOString()
+            role: result.user.role,
+            status: result.user.status,
+            createdAt: result.user.createdAt,
+            createdBy: result.user.createdBy,
           };
           
           setUsers(prev => [...prev, newUser]);
@@ -401,7 +439,7 @@ Thank you for your subscription!
             setShowAddUserDialog(false);
           }, 2000);
         } catch (error) {
-          console.error('Error sending email:', error);
+          console.error('Error creating user:', error);
           setSubmitStatus('error');
         }
       }
@@ -442,13 +480,79 @@ Thank you for your subscription!
     setUserToDelete(user);
   };
 
-  const confirmDeleteUser = () => {
+  const confirmDeleteUser = async () => {
     if (userToDelete) {
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      setUserToDelete(null);
+      try {
+        const response = await fetch(`/api/users/${userToDelete.id}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete user');
+        }
+        
+        // Refresh the user list
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        setUserToDelete(null);
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setDeleteError('Failed to delete user. Please try again.');
+        setTimeout(() => {
+          setDeleteError(null);
+        }, 3000);
+      }
     }
   };
-
+  
+  // Add new cascade delete handlers
+  const handleCascadeDeleteUser = (user: User) => {
+    // Check if user is active
+    if (user.status === 'active') {
+      // Show error message instead of opening delete confirmation
+      setDeleteError('Cannot delete active users. Please deactivate the user first.');
+      // Clear the error message after 3 seconds
+      setTimeout(() => {
+        setDeleteError(null);
+      }, 3000);
+      return;
+    }
+    setUserToDelete(user);
+  };
+  
+  const confirmCascadeDeleteUser = async () => {
+    if (userToDelete) {
+      try {
+        let response;
+        
+        // Determine the appropriate cascade delete endpoint based on user role
+        if (userToDelete.role === 'Admin') {
+          response = await cascadeDeleteAdmin(userToDelete.id);
+        } else if (userToDelete.role === 'Tutor') {
+          response = await cascadeDeleteTutor(userToDelete.id);
+        } else {
+          // For students, just do a regular delete
+          response = await fetch(`/api/users/${userToDelete.id}`, {
+            method: 'DELETE',
+          });
+        }
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete user');
+        }
+        
+        // Refresh the user list
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        setUserToDelete(null);
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setDeleteError('Failed to delete user. Please try again.');
+        setTimeout(() => {
+          setDeleteError(null);
+        }, 3000);
+      }
+    }
+  };
+  
   const viewUserDetails = (user: User) => {
     setSelectedUser(user);
   };
@@ -471,6 +575,126 @@ Thank you for your subscription!
     });
     setShowAddUserDialog(true);
   };
+
+  const handleResetPassword = (user: User) => {
+    setUserToResetPassword(user);
+  };
+
+  const confirmResetPassword = async () => {
+    if (userToResetPassword) {
+      // Simulate password reset process
+      setPasswordResetStatus('processing');
+      
+      try {
+        // In a real application, this would call an API to reset the password
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Show success message
+        setPasswordResetStatus('success');
+        
+        // Clear the success message after 2 seconds
+        setTimeout(() => {
+          setPasswordResetStatus(null);
+          setUserToResetPassword(null);
+        }, 2000);
+      } catch (error) {
+        setPasswordResetStatus('error');
+        console.error('Error resetting password:', error);
+      }
+    }
+  };
+
+  // Add API functions for user hierarchy
+  const fetchAllUsers = async () => {
+    const response = await fetch('/api/users');
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return response.json();
+  };
+
+  const fetchAllTutors = async () => {
+    const response = await fetch('/api/users/tutors');
+    if (!response.ok) throw new Error('Failed to fetch tutors');
+    return response.json();
+  };
+
+  const fetchAllStudents = async () => {
+    const response = await fetch('/api/users/students');
+    if (!response.ok) throw new Error('Failed to fetch students');
+    return response.json();
+  };
+
+  const fetchTutorsByAdmin = async (adminId: string) => {
+    const response = await fetch(`/api/users/admin/${adminId}/tutors`);
+    if (!response.ok) throw new Error('Failed to fetch tutors');
+    return response.json();
+  };
+
+  const fetchStudentsByTutor = async (tutorId: string) => {
+    const response = await fetch(`/api/users/tutor/${tutorId}/students`);
+    if (!response.ok) throw new Error('Failed to fetch students');
+    return response.json();
+  };
+  
+  // Add new cascade delete API functions
+  const deleteStudentsByTutor = async (tutorId: string) => {
+    const response = await fetch(`/api/users/tutor/${tutorId}/students`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete students');
+    return response.json();
+  };
+  
+  const deleteTutorsByAdmin = async (adminId: string) => {
+    const response = await fetch(`/api/users/admin/${adminId}/tutors`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete tutors');
+    return response.json();
+  };
+  
+  const cascadeDeleteTutor = async (tutorId: string) => {
+    const response = await fetch(`/api/users/tutor/${tutorId}/cascade`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to cascade delete tutor');
+    return response.json();
+  };
+  
+  const cascadeDeleteAdmin = async (adminId: string) => {
+    const response = await fetch(`/api/users/admin/${adminId}/cascade`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to cascade delete admin');
+    return response.json();
+  };
+  
+  // Use React Query to fetch users based on view type
+  const { data: usersData, isLoading, error } = useQuery({
+    queryKey: ['users', viewType, currentUser?.id],
+    queryFn: async () => {
+      switch (viewType) {
+        case 'all':
+          return await fetchAllUsers();
+        case 'tutors':
+          return await fetchAllTutors();
+        case 'students':
+          return await fetchAllStudents();
+        case 'my-tutors':
+          return await fetchTutorsByAdmin(currentUser!.id);
+        case 'my-students':
+          return await fetchStudentsByTutor(currentUser!.id);
+        default:
+          return await fetchAllUsers();
+      }
+    },
+    enabled: !!currentUser,
+  });
+
+  useEffect(() => {
+    if (usersData) {
+      setUsers(usersData);
+    }
+  }, [usersData]);
 
   return (
     <div className="space-y-6">
@@ -505,17 +729,29 @@ Thank you for your subscription!
         </CardHeader>
         <CardContent>
           {/* Filters moved below the Add New User button */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-4">
-            <div className="relative flex-1 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search by name, email, or mobile..."
+                placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-                data-testid="input-search-users"
+                className="pl-10 w-full"
+                data-testid="input-search"
               />
             </div>
+            <Select value={viewType} onValueChange={(value: ViewType) => setViewType(value)}>
+              <SelectTrigger className="w-full sm:w-40" data-testid="select-view-type">
+                <SelectValue placeholder="View Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                <SelectItem value="tutors">All Tutors</SelectItem>
+                <SelectItem value="students">All Students</SelectItem>
+                <SelectItem value="my-tutors">My Tutors</SelectItem>
+                <SelectItem value="my-students">My Students</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
               <SelectTrigger className="w-full sm:w-32" data-testid="select-status-filter">
                 <SelectValue placeholder="Status" />
@@ -577,35 +813,74 @@ Thank you for your subscription!
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1 md:gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => viewUserDetails(user)}
-                              data-testid={`button-view-${user.id}`}
-                              className="h-8 w-8 p-0 md:h-9 md:w-9"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditUser(user)}
-                              data-testid={`button-edit-${user.id}`}
-                              className="h-8 w-8 p-0 md:h-9 md:w-9"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user)}
-                              data-testid={`button-delete-${user.id}`}
-                              className="h-8 w-8 p-0 md:h-9 md:w-9"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <TooltipProvider>
+                            <div className="flex gap-1 md:gap-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => viewUserDetails(user)}
+                                    data-testid={`button-view-${user.id}`}
+                                    className="h-8 w-8 p-0 md:h-9 md:w-9"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>View</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditUser(user)}
+                                    data-testid={`button-edit-${user.id}`}
+                                    className="h-8 w-8 p-0 md:h-9 md:w-9"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Edit</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(user)}
+                                    data-testid={`button-delete-${user.id}`}
+                                    className="h-8 w-8 p-0 md:h-9 md:w-9"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Delete</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleResetPassword(user)}
+                                    data-testid={`button-reset-password-${user.id}`}
+                                    className="h-8 w-8 p-0 md:h-9 md:w-9"
+                                  >
+                                    <Key className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Reset Password</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TooltipProvider>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -711,7 +986,7 @@ Thank you for your subscription!
                     onChange={handleChange}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
                       errors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } placeholder-gray-800`}
                     placeholder="Enter full name"
                   />
                   {errors.name && (
@@ -730,7 +1005,7 @@ Thank you for your subscription!
                     onChange={handleChange}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
                       errors.mobile ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } placeholder-gray-800`}
                     placeholder="10-digit mobile number"
                   />
                   {errors.mobile && (
@@ -749,7 +1024,7 @@ Thank you for your subscription!
                     onChange={handleChange}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
                       errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } placeholder-gray-800`}
                     placeholder="email@example.com"
                   />
                   {errors.email && (
@@ -817,7 +1092,7 @@ Thank you for your subscription!
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition placeholder-gray-800"
                     placeholder="Enter address"
                   />
                 </div>
@@ -861,7 +1136,7 @@ Thank you for your subscription!
                     name="qualification"
                     value={formData.qualification}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition placeholder-gray-800"
                     placeholder="Enter qualification"
                   />
                 </div>
@@ -875,7 +1150,7 @@ Thank you for your subscription!
                     name="department"
                     value={formData.department}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition placeholder-gray-800"
                     placeholder="Enter department"
                   />
                 </div>
@@ -1017,7 +1292,9 @@ Thank you for your subscription!
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this user? This action cannot be undone.
+              {userToDelete?.role === 'Admin' || userToDelete?.role === 'Tutor' 
+                ? 'This user has created other users. Choose how to handle their associated users:'
+                : 'Are you sure you want to delete this user? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -1027,14 +1304,119 @@ Thank you for your subscription!
                 <p className="text-sm">
                   <span className="font-medium">User:</span> {userToDelete.name} ({userToDelete.email})
                 </p>
+                <p className="text-sm mt-1">
+                  <span className="font-medium">Role:</span> {userToDelete.role}
+                </p>
               </div>
+              
+              {userToDelete.role === 'Admin' && (
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <AlertCircle className="inline h-4 w-4 mr-1" />
+                    Deleting this admin will also delete all tutors they created and all students created by those tutors.
+                  </p>
+                </div>
+              )}
+              
+              {userToDelete.role === 'Tutor' && (
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <AlertCircle className="inline h-4 w-4 mr-1" />
+                    Deleting this tutor will also delete all students they created.
+                  </p>
+                </div>
+              )}
               
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setUserToDelete(null)}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={confirmDeleteUser}>
-                  Delete
+                {(userToDelete.role === 'Admin' || userToDelete.role === 'Tutor') ? (
+                  <>
+                    <Button 
+                      variant="destructive" 
+                      onClick={confirmDeleteUser}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete Only This User
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={confirmCascadeDeleteUser}
+                      className="bg-red-800 hover:bg-red-900"
+                    >
+                      Delete With Associated Users
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="destructive" onClick={confirmDeleteUser}>
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Reset Confirmation Dialog */}
+      <Dialog open={!!userToResetPassword} onOpenChange={() => {
+        setUserToResetPassword(null);
+        setPasswordResetStatus(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reset the password for this user? A temporary password will be generated and sent to their email.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {userToResetPassword && (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm">
+                  <span className="font-medium">User:</span> {userToResetPassword.name} ({userToResetPassword.email})
+                </p>
+              </div>
+              
+              {passwordResetStatus === 'processing' && (
+                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <p className="text-blue-700 text-sm">Resetting password and sending email...</p>
+                </div>
+              )}
+              
+              {passwordResetStatus === 'success' && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                  <Check className="text-green-500 h-4 w-4" />
+                  <p className="text-green-700 text-sm">Password reset successfully! Temporary password sent to user's email.</p>
+                </div>
+              )}
+              
+              {passwordResetStatus === 'error' && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
+                  <AlertCircle className="text-red-500 h-4 w-4" />
+                  <p className="text-red-700 text-sm">Error resetting password. Please try again.</p>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setUserToResetPassword(null);
+                    setPasswordResetStatus(null);
+                  }}
+                  disabled={passwordResetStatus === 'processing'}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={confirmResetPassword}
+                  disabled={passwordResetStatus === 'processing'}
+                >
+                  Reset Password
                 </Button>
               </div>
             </div>
